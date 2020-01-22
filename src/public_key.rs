@@ -1,0 +1,92 @@
+use std::convert::TryFrom;
+
+use curve25519_dalek::edwards::EdwardsPoint;
+
+use crate::{Error, Signature};
+
+/// A refinement type for `[u8; 32]` indicating that the bytes represent
+/// an encoding of an Ed25519 public key.
+///
+/// This is useful for representing a compressed public key; the
+/// [`PublicKey`] type in this library holds other decompressed state
+/// used in signature verification.
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PublicKeyBytes(pub(crate) [u8; 32]);
+
+impl From<[u8; 32]> for PublicKeyBytes {
+    fn from(bytes: [u8; 32]) -> PublicKeyBytes {
+        PublicKeyBytes(bytes)
+    }
+}
+
+impl From<PublicKeyBytes> for [u8; 32] {
+    fn from(refined: PublicKeyBytes) -> [u8; 32] {
+        refined.0
+    }
+}
+
+/// A valid Ed25519 public key.
+///
+/// This type holds decompressed state used in signature verification; if the
+/// public key may not be used immediately, it is probably better to use
+/// [`PublicKeyBytes`], which is a refinement type for `[u8; 32]`.
+///
+/// ## Consensus properties
+///
+/// Valid Ed25519 public keys are defined in
+/// [§5.4.5](https://zips.z.cash/protocol/protocol.pdf#concretejssig) of the
+/// Zcash protocol specification.
+///
+/// FIXME: the spec says that a public key must be a point of order `l`; is
+/// this exactly what is meant?  Would a public key of order `8*l` be rejected
+/// by the implementation?  Or is this intended to specify that the point must
+/// not be of *small* order?
+#[derive(Copy, Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(try_from = "PublicKeyBytes"))]
+#[cfg_attr(feature = "serde", serde(into = "PublicKeyBytes"))]
+pub struct PublicKey {
+    pub(crate) bytes: PublicKeyBytes,
+    pub(crate) point: EdwardsPoint,
+}
+
+impl From<PublicKey> for PublicKeyBytes {
+    fn from(pk: PublicKey) -> PublicKeyBytes {
+        pk.bytes
+    }
+}
+
+impl From<PublicKey> for [u8; 32] {
+    fn from(pk: PublicKey) -> [u8; 32] {
+        pk.bytes.0
+    }
+}
+
+impl TryFrom<PublicKeyBytes> for PublicKey {
+    type Error = Error;
+    fn try_from(bytes: PublicKeyBytes) -> Result<Self, Self::Error> {
+        use curve25519_dalek::edwards::CompressedEdwardsY;
+        // XXX check consensus rules, see FIXME above
+        let point = CompressedEdwardsY(bytes.0)
+            .decompress()
+            .ok_or(Error::MalformedPublicKey)?;
+
+        Ok(PublicKey { point, bytes })
+    }
+}
+
+impl TryFrom<[u8; 32]> for PublicKey {
+    type Error = Error;
+    fn try_from(bytes: [u8; 32]) -> Result<Self, Self::Error> {
+        use std::convert::TryInto;
+        PublicKeyBytes::from(bytes).try_into()
+    }
+}
+
+impl PublicKey {
+    /// Verify a purported `signature` on the given `msg`.
+    pub fn verify(&self, _signature: &Signature, _msg: &[u8]) -> Result<(), Error> {
+        unimplemented!();
+    }
+}
