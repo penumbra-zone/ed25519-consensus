@@ -6,7 +6,6 @@
 
 //! Docs require the `nightly` feature until RFC 1990 lands.
 
-mod constants;
 mod error;
 mod public_key;
 mod secret_key;
