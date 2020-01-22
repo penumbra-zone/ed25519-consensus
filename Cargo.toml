@@ -1,0 +1,7 @@
+[package]
+name = "ed25519-zebra"
+version = "0.1.0"
+authors = ["Henry de Valence <hdevalence@hdevalence.ca>"]
+edition = "2018"
+
+[dependencies]
