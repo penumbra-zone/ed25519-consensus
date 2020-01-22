@@ -1,0 +1,21 @@
+name: CI
+
+on: [push]
+
+jobs:
+  test_nightly:
+    name: test on nightly
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    # Because we use nightly features for building docs,
+    # using --all-features will fail without nightly toolchain.
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --all-features
+
