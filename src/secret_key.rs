@@ -18,7 +18,7 @@ pub struct SecretKey {
 
 impl<'a> From<&'a SecretKey> for PublicKey {
     fn from(sk: &'a SecretKey) -> PublicKey {
-        sk.pk.clone()
+        sk.pk
     }
 }
 
