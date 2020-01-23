@@ -59,8 +59,8 @@ impl From<[u8; 32]> for SecretKey {
             s,
             prefix,
             pk: PublicKey {
-                point: A,
-                bytes: PublicKeyBytes(A.compress().to_bytes()),
+                minus_A: -A,
+                A_bytes: PublicKeyBytes(A.compress().to_bytes()),
             },
         }
     }
@@ -101,7 +101,7 @@ impl SecretKey {
         let k = Scalar::from_hash(
             Sha512::default()
                 .chain(&R_bytes[..])
-                .chain(&self.pk.bytes.0[..])
+                .chain(&self.pk.A_bytes.0[..])
                 .chain(msg),
         );
 

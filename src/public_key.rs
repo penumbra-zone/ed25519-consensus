@@ -50,32 +50,37 @@ impl From<PublicKeyBytes> for [u8; 32] {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "PublicKeyBytes"))]
 #[cfg_attr(feature = "serde", serde(into = "PublicKeyBytes"))]
+#[allow(non_snake_case)]
 pub struct PublicKey {
-    pub(crate) bytes: PublicKeyBytes,
-    pub(crate) point: EdwardsPoint,
+    pub(crate) A_bytes: PublicKeyBytes,
+    pub(crate) minus_A: EdwardsPoint,
 }
 
 impl From<PublicKey> for PublicKeyBytes {
     fn from(pk: PublicKey) -> PublicKeyBytes {
-        pk.bytes
+        pk.A_bytes
     }
 }
 
 impl From<PublicKey> for [u8; 32] {
     fn from(pk: PublicKey) -> [u8; 32] {
-        pk.bytes.0
+        pk.A_bytes.0
     }
 }
 
 impl TryFrom<PublicKeyBytes> for PublicKey {
     type Error = Error;
+    #[allow(non_snake_case)]
     fn try_from(bytes: PublicKeyBytes) -> Result<Self, Self::Error> {
         // XXX check consensus rules, see FIXME above
-        let point = CompressedEdwardsY(bytes.0)
+        let A = CompressedEdwardsY(bytes.0)
             .decompress()
             .ok_or(Error::MalformedPublicKey)?;
 
-        Ok(PublicKey { point, bytes })
+        Ok(PublicKey {
+            A_bytes: bytes,
+            minus_A: -A,
+        })
     }
 }
 
@@ -111,13 +116,12 @@ impl PublicKey {
         let k = Scalar::from_hash(
             Sha512::default()
                 .chain(&signature.R_bytes[..])
-                .chain(&self.bytes.0[..])
+                .chain(&self.A_bytes.0[..])
                 .chain(msg),
         );
 
-        // We expect to recompute R as [s]B - [k]A.
-        let recomputed_R =
-            EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(-self.point), &s);
+        // We expect to recompute R as [s]B - [k]A = [k](-A) + [s]B.
+        let recomputed_R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &self.minus_A, &s);
 
         // XXX the Zcash spec does not seem to explicitly specify whether
         // the Ed25519 verification check includes a cofactor multiplication (?)
