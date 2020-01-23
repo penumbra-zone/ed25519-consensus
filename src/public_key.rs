@@ -1,6 +1,10 @@
 use std::convert::TryFrom;
 
-use curve25519_dalek::edwards::EdwardsPoint;
+use curve25519_dalek::{
+    edwards::{CompressedEdwardsY, EdwardsPoint},
+    scalar::Scalar,
+};
+use sha2::{Digest, Sha512};
 
 use crate::{Error, Signature};
 
@@ -66,7 +70,6 @@ impl From<PublicKey> for [u8; 32] {
 impl TryFrom<PublicKeyBytes> for PublicKey {
     type Error = Error;
     fn try_from(bytes: PublicKeyBytes) -> Result<Self, Self::Error> {
-        use curve25519_dalek::edwards::CompressedEdwardsY;
         // XXX check consensus rules, see FIXME above
         let point = CompressedEdwardsY(bytes.0)
             .decompress()
@@ -86,7 +89,44 @@ impl TryFrom<[u8; 32]> for PublicKey {
 
 impl PublicKey {
     /// Verify a purported `signature` on the given `msg`.
-    pub fn verify(&self, _signature: &Signature, _msg: &[u8]) -> Result<(), Error> {
-        unimplemented!();
+    #[allow(non_snake_case)]
+    pub fn verify(&self, signature: &Signature, msg: &[u8]) -> Result<(), Error> {
+        // Zcash consensus rule: S MUST represent an integer less than the prime `l`
+        let s = Scalar::from_canonical_bytes(signature.s_bytes).ok_or(Error::InvalidSignature)?;
+
+        // Zcash consensus rule: R MUST represent a point
+        //     a. on the Ed25519 curve
+        //     b. of order at least `l`
+        let R = CompressedEdwardsY(signature.R_bytes)
+            .decompress()
+            .ok_or(Error::InvalidSignature)
+            .and_then(|R| {
+                if R.is_small_order() {
+                    Err(Error::InvalidSignature)
+                } else {
+                    Ok(R)
+                }
+            })?;
+
+        let k = Scalar::from_hash(
+            Sha512::default()
+                .chain(&signature.R_bytes[..])
+                .chain(&self.bytes.0[..])
+                .chain(msg),
+        );
+
+        // We expect to recompute R as [s]B - [k]A.
+        let recomputed_R =
+            EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &(-self.point), &s);
+
+        // XXX the Zcash spec does not seem to explicitly specify whether
+        // the Ed25519 verification check includes a cofactor multiplication (?)
+
+        // Check whether [8]R = [8]([s]B - [k]A), i.e., whether R - ([s]B - [k]A) is of small order.
+        if (R - recomputed_R).is_small_order() {
+            Ok(())
+        } else {
+            Err(Error::InvalidSignature)
+        }
     }
 }
