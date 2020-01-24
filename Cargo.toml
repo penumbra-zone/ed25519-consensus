@@ -19,6 +19,8 @@ serde = { version = "1", optional = true, features = ["derive"] }
 
 [dev-dependencies]
 rand = "0.7"
+hex = "0.3"
+bincode = "1"
 
 [features]
 nightly = []
