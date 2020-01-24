@@ -1,5 +1,4 @@
-// Uncomment this before publication.
-//#![doc(html_root_url = "https://docs.rs/ed25519-zebra/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/ed25519-zebra/0.1.0")]
 #![cfg_attr(feature = "nightly", feature(external_doc))]
 #![cfg_attr(feature = "nightly", doc(include = "../README.md"))]
 #![deny(missing_docs)]
