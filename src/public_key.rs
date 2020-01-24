@@ -36,16 +36,25 @@ impl From<PublicKeyBytes> for [u8; 32] {
 /// public key may not be used immediately, it is probably better to use
 /// [`PublicKeyBytes`], which is a refinement type for `[u8; 32]`.
 ///
-/// ## Consensus properties
+/// ## Zcash-specific consensus properties
 ///
-/// Valid Ed25519 public keys are defined in
-/// [§5.4.5](https://zips.z.cash/protocol/protocol.pdf#concretejssig) of the
-/// Zcash protocol specification.
+/// Ed25519 checks are described in [§5.4.5][ps] of the Zcash protocol
+/// specification. However, it is not clear that the protocol specification
+/// matches the implementation in `libsodium` `1.0.15` used by `zcashd`. Note
+/// that the precise version is important because `libsodium` changed validation
+/// rules in point releases.
 ///
-/// FIXME: the spec says that a public key must be a point of order `l`; is
-/// this exactly what is meant?  Would a public key of order `8*l` be rejected
-/// by the implementation?  Or is this intended to specify that the point must
-/// not be of *small* order?
+/// The spec says that a public key `A` is
+///
+/// > a point of order `l` on the Ed25519 curve, in the encoding specified by…
+///
+/// but `libsodium` `1.0.15` does not check this. Instead it only checks whether
+/// the encoding of `A` is an encoding of a point on the curve and that the
+/// encoding is not all zeros. This implementation matches the `libsodium`
+/// behavior.  This has implications for signature verification behaviour, as noted
+/// in the [`PublicKey::verify`] documentation.
+///
+/// [ps]: https://zips.z.cash/protocol/protocol.pdf#concretejssig
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "PublicKeyBytes"))]
@@ -72,7 +81,10 @@ impl TryFrom<PublicKeyBytes> for PublicKey {
     type Error = Error;
     #[allow(non_snake_case)]
     fn try_from(bytes: PublicKeyBytes) -> Result<Self, Self::Error> {
-        // XXX check consensus rules, see FIXME above
+        if bytes.0 == [0; 32] {
+            return Err(Error::MalformedPublicKey);
+        }
+
         let A = CompressedEdwardsY(bytes.0)
             .decompress()
             .ok_or(Error::MalformedPublicKey)?;
@@ -94,24 +106,41 @@ impl TryFrom<[u8; 32]> for PublicKey {
 
 impl PublicKey {
     /// Verify a purported `signature` on the given `msg`.
+    ///
+    /// ## Zcash-specific consensus properties
+    ///
+    /// Ed25519 checks are described in [§5.4.5][ps] of the Zcash protocol
+    /// specification. However, it is not clear that the protocol specification
+    /// matches the implementation in `libsodium` `1.0.15` used by `zcashd`. Note
+    /// that the precise version is important because `libsodium` changed validation
+    /// rules in point releases.
+    ///
+    /// Ed25519 permits implementations to choose whether or not to multiply by the
+    /// cofactor in the verification check. The Zcash spec does not say whether
+    /// cofactor multiplication is performed, but the verification function used by
+    /// `zcashd` does not perform cofactor multiplication, so this implementation
+    /// does not either.
+    ///
+    /// The spec says that the signature's `R` value
+    ///
+    /// > MUST represent a point on the Ed25519 curve of order at least `l`
+    ///
+    /// but `libsodium` `1.0.15` does not seem to check this directly. Instead it
+    /// recomputes the expected `R` value and then compares its encoding against the
+    /// provided encoding of `R`. This implementation does the same check.
+    ///
+    /// `R` is recomputed as `R <- [s]B - [k]A`. This is of low order if and only if
+    /// `s = 0` and `[k]A` is of low order. Assuming that `k`, computed as a hash
+    /// output, is uncontrollable, `[k]A` is of low order if and only if `A` is of
+    /// low order. However, as noted in the [`PublicKey`] docs, public key validation
+    /// does not ensure that `A` is of order at least `l`, only that its encoding is
+    /// nonzero.
+    ///
+    /// [ps]: https://zips.z.cash/protocol/protocol.pdf#concretejssig
     #[allow(non_snake_case)]
     pub fn verify(&self, signature: &Signature, msg: &[u8]) -> Result<(), Error> {
-        // Zcash consensus rule: S MUST represent an integer less than the prime `l`
+        // Zcash consensus rule: `s` MUST represent an integer less than the prime `l`.
         let s = Scalar::from_canonical_bytes(signature.s_bytes).ok_or(Error::InvalidSignature)?;
-
-        // Zcash consensus rule: R MUST represent a point
-        //     a. on the Ed25519 curve
-        //     b. of order at least `l`
-        let R = CompressedEdwardsY(signature.R_bytes)
-            .decompress()
-            .ok_or(Error::InvalidSignature)
-            .and_then(|R| {
-                if R.is_small_order() {
-                    Err(Error::InvalidSignature)
-                } else {
-                    Ok(R)
-                }
-            })?;
 
         let k = Scalar::from_hash(
             Sha512::default()
@@ -121,13 +150,9 @@ impl PublicKey {
         );
 
         // We expect to recompute R as [s]B - [k]A = [k](-A) + [s]B.
-        let recomputed_R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &self.minus_A, &s);
+        let R = EdwardsPoint::vartime_double_scalar_mul_basepoint(&k, &self.minus_A, &s);
 
-        // XXX the Zcash spec does not seem to explicitly specify whether
-        // the Ed25519 verification check includes a cofactor multiplication (?)
-
-        // Check whether [8]R = [8]([s]B - [k]A), i.e., whether R - ([s]B - [k]A) is of small order.
-        if (R - recomputed_R).is_small_order() {
+        if R.compress().to_bytes() == signature.R_bytes {
             Ok(())
         } else {
             Err(Error::InvalidSignature)
