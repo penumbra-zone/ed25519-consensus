@@ -8,12 +8,26 @@ use sha2::{Digest, Sha512};
 
 use crate::{Error, Signature};
 
-/// A refinement type for `[u8; 32]` indicating that the bytes represent
-/// an encoding of an Ed25519 public key.
+/// A refinement type for `[u8; 32]` indicating that the bytes represent an
+/// encoding of an Ed25519 public key.
 ///
-/// This is useful for representing a compressed public key; the
-/// [`PublicKey`] type in this library holds other decompressed state
-/// used in signature verification.
+/// This is useful for representing an encoded public key, while the
+/// [`PublicKey`] type in this library caches other decoded state used in
+/// signature verification.  
+///
+/// A `PublicKeyBytes` can be used to verify a single signature using the
+/// following idiom:
+/// ```
+/// use std::convert::TryFrom;
+/// # use rand::thread_rng;
+/// # use ed25519_zebra::*;
+/// # let msg = b"Zcash";
+/// # let sk = SecretKey::new(thread_rng());
+/// # let sig = sk.sign(msg);
+/// # let pk_bytes: PublicKeyBytes = PublicKey::from(&sk).into();
+/// PublicKey::try_from(pk_bytes)
+///     .and_then(|pk| pk.verify(&sig, msg));
+/// ```
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PublicKeyBytes(pub(crate) [u8; 32]);
