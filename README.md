@@ -14,6 +14,31 @@ specifically, and since it is unreasonable to expect an upstream dependency to
 maintain Zcash-specific behavior, this crate provides an Ed25519 implementation
 matching the Zcash consensus rules exactly.
 
+## Example
+
+```
+use std::convert::TryFrom;
+use rand::thread_rng;
+use ed25519_zebra::*;
+
+let msg = b"Zcash";
+
+// Generate a secret key and sign the message
+let sk = SecretKey::new(thread_rng());
+let sig = sk.sign(msg);
+
+// Types can be converted to raw byte arrays with From/Into
+let sig_bytes: [u8; 64] = sig.into();
+let pk_bytes: [u8; 32] = PublicKey::from(&sk).into();
+
+// Verify the signature
+assert!(
+    PublicKey::try_from(pk_bytes)
+        .and_then(|pk| pk.verify(&sig_bytes.into(), msg))
+        .is_ok()
+);
+```
+
 [zcash_protocol_jssig]: https://zips.z.cash/protocol/protocol.pdf#concretejssig
 [RFC8032]: https://tools.ietf.org/html/rfc8032
 [zebra]: https://github.com/ZcashFoundation/zebra
