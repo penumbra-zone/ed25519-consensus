@@ -10,42 +10,24 @@ use curve25519_dalek::{
     scalar::Scalar,
     traits::{IsIdentity, VartimeMultiscalarMul},
 };
+use rand::thread_rng;
 use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha512};
-use tokio::{
-    prelude::*,
-    sync::watch::{channel, Receiver, Sender},
-};
+use tokio::sync::watch::{channel, Receiver, Sender};
 use tower_service::Service;
 
 use crate::{batch::VerificationRequest, Error, PublicKeyBytes, Signature};
 
 /// Performs batch verification.
 pub struct BatchVerifier {
-    signatures: HashMap<PublicKeyBytes, Vec<(Scalar, Signature)>>,
     tx: Sender<Result<(), Error>>,
     rx: Receiver<Result<(), Error>>,
-    /// The number of signatures in the batch, used to preallocate
-    /// without having to iterate through the hashmap.
-    n: usize,
-}
-
-impl Default for BatchVerifier {
-    fn default() -> BatchVerifier {
-        // broadcast::channel requires setting an initial default
-        // value, so that there is always one value for a receiver.
-        // We will skip this value, but set it to Err to fail closed.
-        let (tx, mut rx) = channel(Err(Error::InvalidSignature));
-        // Skip the default so that rx.recv() waits for the next broadcast.
-        let _ = rx.recv();
-
-        BatchVerifier {
-            tx,
-            rx,
-            signatures: HashMap::default(),
-            n: 0,
-        }
-    }
+    /// The number of signatures per batch.
+    batch_size: usize,
+    /// The number of signatures currently queued for verification.
+    num_sigs: usize,
+    /// Signature data queued for verification.
+    signatures: HashMap<PublicKeyBytes, Vec<(Scalar, Signature)>>,
 }
 
 // Shim to generate a u128 without importing `rand`.
@@ -56,9 +38,33 @@ fn gen_u128<R: RngCore + CryptoRng>(mut rng: R) -> u128 {
 }
 
 impl BatchVerifier {
-    /// Finalize the batch verification, resolving all `Response` futures.
+    /// Construct a new batch verifier, targeting `batch_size` batches.
+    ///
+    /// Incoming verification requests will be buffered until the batch size is
+    /// reached or the service is dropped, at which point the service performs batch
+    /// verification to flush pending requests.
+    pub fn new(batch_size: usize) -> BatchVerifier {
+        // broadcast::channel requires setting an initial default
+        // value, so that there is always one value for a receiver.
+        // We will skip this value, but set it to Err to fail closed.
+        let (tx, mut rx) = channel(Err(Error::InvalidSignature));
+        // Skip the default so that rx.recv() waits for the next broadcast.
+        let _ = rx.recv();
+
+        BatchVerifier {
+            tx,
+            rx,
+            batch_size,
+            num_sigs: 0,
+            signatures: HashMap::default(),
+        }
+    }
+
+    /// Finalize the batch verification, resolving all pending `Response` futures.
+    ///
+    /// XXX should this spawn a task?
     #[allow(non_snake_case)]
-    pub fn finalize<R: RngCore + CryptoRng>(self, mut rng: R) {
+    fn flush(&mut self) {
         // The batch verification equation is
         //
         // [-sum(z_i * s_i)]B + sum([z_i]R_i) + sum([z_i * k_i]A_i) = 0.
@@ -87,15 +93,15 @@ impl BatchVerifier {
 
         let mut A_coeffs = Vec::with_capacity(m);
         let mut As = Vec::with_capacity(m);
-        let mut R_coeffs = Vec::with_capacity(self.n);
-        let mut Rs = Vec::with_capacity(self.n);
+        let mut R_coeffs = Vec::with_capacity(self.batch_size);
+        let mut Rs = Vec::with_capacity(self.batch_size);
         let mut B_coeff = Scalar::zero();
 
         for (pk_bytes, sigs) in self.signatures.iter() {
             let A = match CompressedEdwardsY(pk_bytes.0).decompress() {
                 Some(A) => A,
                 None => {
-                    self.tx.broadcast(Err(Error::InvalidSignature));
+                    let _ = self.tx.broadcast(Err(Error::InvalidSignature));
                     return;
                 }
             };
@@ -108,11 +114,11 @@ impl BatchVerifier {
                 ) {
                     (Some(R), Some(s)) => (R, s),
                     _ => {
-                        self.tx.broadcast(Err(Error::InvalidSignature));
+                        let _ = self.tx.broadcast(Err(Error::InvalidSignature));
                         return;
                     }
                 };
-                let z = Scalar::from(gen_u128(&mut rng));
+                let z = Scalar::from(gen_u128(thread_rng()));
                 B_coeff -= z * s;
                 Rs.push(R);
                 R_coeffs.push(z);
@@ -131,9 +137,9 @@ impl BatchVerifier {
         );
 
         if check.is_identity() {
-            self.tx.broadcast(Ok(()));
+            let _ = self.tx.broadcast(Ok(()));
         } else {
-            self.tx.broadcast(Err(Error::InvalidSignature));
+            let _ = self.tx.broadcast(Err(Error::InvalidSignature));
         }
     }
 }
@@ -144,6 +150,12 @@ impl Service<VerificationRequest<'_>> for BatchVerifier {
     type Future = Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'static>>;
 
     fn poll_ready(&mut self, _cx: &mut Context) -> Poll<Result<(), Error>> {
+        // Flush the batch if we have reached the target batch_size.
+        // Checking num_sigs >= batch_size rather than == protects
+        // against callers who violate the Service contract.
+        if self.num_sigs >= self.batch_size {
+            self.flush()
+        }
         Poll::Ready(Ok(()))
     }
 
@@ -162,12 +174,18 @@ impl Service<VerificationRequest<'_>> for BatchVerifier {
             .entry(pk_bytes)
             .or_insert_with(|| Vec::new())
             .push((k, sig));
-        self.n += 1;
+        self.num_sigs += 1;
 
         let mut rx2 = self.rx.clone();
         Box::pin(async move {
             // Fail closed by converting a channel error to a signature failure.
             rx2.recv().await.unwrap_or(Err(Error::InvalidSignature))
         })
+    }
+}
+
+impl Drop for BatchVerifier {
+    fn drop(&mut self) {
+        self.flush();
     }
 }

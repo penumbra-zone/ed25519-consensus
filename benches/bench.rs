@@ -1,14 +1,9 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
-use futures::stream::{FuturesUnordered, Stream, StreamExt};
 use rand::thread_rng;
-use tokio::runtime::Runtime;
-use tower::{Service, ServiceExt};
+use tower::Service;
 
-use ed25519_zebra::{
-    batch::{BatchVerifier, VerificationRequest},
-    *,
-};
+use ed25519_zebra::{batch::BatchVerifier, *};
 
 fn sigs_with_distinct_pubkeys() -> impl Iterator<Item = (PublicKeyBytes, Signature)> {
     std::iter::repeat_with(|| {
@@ -29,11 +24,15 @@ fn sigs_with_same_pubkey() -> impl Iterator<Item = (PublicKeyBytes, Signature)> 
 }
 
 fn batch_verify(sigs: &Vec<(PublicKeyBytes, Signature)>) {
-    let mut svc = BatchVerifier::default();
+    // Set a very large batch size to prevent intermediate flushing.
+    // The batch will be flushed when svc is dropped.
+    let mut svc = BatchVerifier::new(100_000);
     for (pk_bytes, sig) in sigs.iter() {
+        // this should call poll_ready but doesn't; this is OK
+        // only in this specific case because we don't want
+        // intermediate flushing.
         svc.call((*pk_bytes, *sig, b""));
     }
-    svc.finalize(thread_rng());
 }
 
 fn bench_batch_verify(c: &mut Criterion) {
