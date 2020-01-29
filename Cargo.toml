@@ -29,6 +29,7 @@ bincode = "1"
 tokio = { version = "0.2", features = ["full"]}
 futures = "0.3"
 tower = "0.3"
+criterion = "0.3"
 
 [features]
 nightly = []
@@ -43,4 +44,9 @@ name = "unit_tests"
 
 [[test]]
 name = "batch"
+required-features = ["batch"]
+
+[[bench]]
+name = "bench"
+harness = false
 required-features = ["batch"]
