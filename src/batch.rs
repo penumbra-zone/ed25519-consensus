@@ -4,6 +4,7 @@ mod batcher;
 mod singleton;
 
 pub use batcher::BatchVerifier;
+pub use singleton::SingletonVerifier;
 
 use super::{PublicKeyBytes, Signature};
 

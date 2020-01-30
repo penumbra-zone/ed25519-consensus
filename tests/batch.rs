@@ -3,7 +3,7 @@ use rand::thread_rng;
 use tokio::runtime::Runtime;
 use tower::{Service, ServiceExt};
 
-use ed25519_zebra::{batch::BatchVerifier, *};
+use ed25519_zebra::{batch::*, *};
 
 #[test]
 fn batch_verify_with_flushing() {
@@ -33,4 +33,50 @@ fn batch_verify_with_flushing() {
             assert_eq!(results.next().await, Some(Ok(())));
         }
     });
+}
+
+// This is a bit awkward and points to a rough edge in the current design. We
+// need the function to be async because we need to poll readiness of the
+// Service. Ideally we would also just .await the result of svc.call also, but
+// doing so means that the verification future is bound to the lifetime of svc.
+// This is a problem for a number of reasons: it means that we can't call
+// sign_and_verify multiple times (as the &mut moves inside the future, it's not
+// accessible for other calls), but it also means that in a more realistic
+// scenario where we have a Buffer or something, straight-line code in async
+// blocks may maintain references to data that prevents the service from getting
+// dropped, preventing manual flushing.
+//
+// XXX this awkwardness is perhaps solved by using service_fn to create new Services?
+async fn sign_and_verify<S>(svc: &mut S) -> impl std::future::Future<Output = Result<(), Error>>
+where
+    for<'msg> S: Service<VerificationRequest<'msg>, Response = (), Error = Error>,
+{
+    let sk = SecretKey::new(thread_rng());
+    let pk_bytes = PublicKeyBytes::from(&sk);
+    svc.ready().await.unwrap();
+    svc.call((pk_bytes, sk.sign(b""), b""))
+}
+
+#[test]
+fn abstract_over_batched_and_singleton_verification() {
+    let mut rt = Runtime::new().unwrap();
+    rt.block_on(async {
+        let mut svc = BatchVerifier::new(10);
+        let fut1 = sign_and_verify(&mut svc).await;
+        let fut2 = sign_and_verify(&mut svc).await;
+        // Manually flush the batch by dropping the verifier.
+        std::mem::drop(svc);
+        let result1 = fut1.await;
+        let result2 = fut2.await;
+        assert_eq!(result1, Ok(()));
+        assert_eq!(result2, Ok(()));
+
+        let mut svc = SingletonVerifier;
+        let fut1 = sign_and_verify(&mut svc).await;
+        let fut2 = sign_and_verify(&mut svc).await;
+        let result1 = fut1.await;
+        let result2 = fut2.await;
+        assert_eq!(result1, Ok(()));
+        assert_eq!(result2, Ok(()));
+    })
 }

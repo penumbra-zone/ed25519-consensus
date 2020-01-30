@@ -18,7 +18,7 @@ use tower_service::Service;
 
 use crate::{batch::VerificationRequest, Error, PublicKeyBytes, Signature};
 
-/// Performs batch verification.
+/// Performs batch Ed25519 signature verification.
 pub struct BatchVerifier {
     tx: Sender<Result<(), Error>>,
     rx: Receiver<Result<(), Error>>,
