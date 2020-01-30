@@ -11,7 +11,7 @@ repository = "https://github.com/ZcashFoundation/ed25519-zebra"
 description = "Zcash-flavored Ed25519 for use in Zebra."
 
 [package.metadata.docs.rs]
-features = ["nightly"]
+features = ["nightly", "batch"]
 
 [dependencies]
 sha2 = "0.8"

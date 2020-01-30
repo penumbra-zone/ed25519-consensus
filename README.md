@@ -14,6 +14,10 @@ specifically, and since it is unreasonable to expect an upstream dependency to
 maintain Zcash-specific behavior, this crate provides an Ed25519 implementation
 matching the Zcash consensus rules exactly.
 
+This crate also provides an experimental interface meant to explore batch
+verification of heterogeneous data, documented in the `batch` module and
+feature-gated behind the `batch` feature.
+
 ## Example
 
 ```
