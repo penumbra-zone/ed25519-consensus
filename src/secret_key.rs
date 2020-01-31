@@ -22,6 +22,12 @@ impl<'a> From<&'a SecretKey> for PublicKey {
     }
 }
 
+impl<'a> From<&'a SecretKey> for PublicKeyBytes {
+    fn from(sk: &'a SecretKey) -> PublicKeyBytes {
+        sk.pk.into()
+    }
+}
+
 impl From<SecretKey> for [u8; 32] {
     fn from(sk: SecretKey) -> [u8; 32] {
         sk.seed
