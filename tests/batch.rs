@@ -3,13 +3,13 @@ use rand::thread_rng;
 use tokio::runtime::Runtime;
 use tower::{Service, ServiceExt};
 
-use ed25519_zebra::{batch::*, *};
+use ed25519_zebra::{batch, *};
 
 #[test]
 fn batch_verify_with_flushing() {
     let mut rt = Runtime::new().unwrap();
     let batch_size = 32;
-    let mut svc = BatchVerifier::new(batch_size);
+    let mut svc = batch::BatchVerifier::new(batch_size);
     rt.block_on(async {
         let mut results = FuturesUnordered::new();
 
@@ -20,15 +20,16 @@ fn batch_verify_with_flushing() {
             let msg = b"BatchVerifyTest";
             let sig = sk.sign(&msg[..]);
             svc.ready().await.unwrap();
-            results.push(svc.call((pk_bytes, sig, &msg[..])));
+            results.push(svc.call((pk_bytes, sig, &msg[..]).into()));
         }
 
         // Now the first batch_size should be ready...
         for _ in 0..batch_size {
             assert_eq!(results.next().await, Some(Ok(())));
         }
-        // and dropping the service should flush the rest.
-        std::mem::drop(svc);
+        // and manually flushing should finish the rest.
+        let _ = svc.ready().await;
+        let _ = svc.call(batch::Request::Flush).await;
         for _ in 0..batch_size {
             assert_eq!(results.next().await, Some(Ok(())));
         }
@@ -49,29 +50,29 @@ fn batch_verify_with_flushing() {
 // XXX this awkwardness is perhaps solved by using service_fn to create new Services?
 async fn sign_and_verify<S>(svc: &mut S) -> impl std::future::Future<Output = Result<(), Error>>
 where
-    for<'msg> S: Service<VerificationRequest<'msg>, Response = (), Error = Error>,
+    for<'msg> S: Service<batch::Request<'msg>, Response = (), Error = Error>,
 {
     let sk = SecretKey::new(thread_rng());
     let pk_bytes = PublicKeyBytes::from(&sk);
     svc.ready().await.unwrap();
-    svc.call((pk_bytes, sk.sign(b""), b""))
+    svc.call((pk_bytes, sk.sign(b""), b"").into())
 }
 
 #[test]
 fn abstract_over_batched_and_singleton_verification() {
     let mut rt = Runtime::new().unwrap();
     rt.block_on(async {
-        let mut svc = BatchVerifier::new(10);
+        let mut svc = batch::BatchVerifier::new(10);
         let fut1 = sign_and_verify(&mut svc).await;
         let fut2 = sign_and_verify(&mut svc).await;
-        // Manually flush the batch by dropping the verifier.
-        std::mem::drop(svc);
+        let _ = svc.ready().await;
+        let _ = svc.call(batch::Request::Flush).await;
         let result1 = fut1.await;
         let result2 = fut2.await;
         assert_eq!(result1, Ok(()));
         assert_eq!(result2, Ok(()));
 
-        let mut svc = SingletonVerifier;
+        let mut svc = batch::SingletonVerifier;
         let fut1 = sign_and_verify(&mut svc).await;
         let fut2 = sign_and_verify(&mut svc).await;
         let result1 = fut1.await;

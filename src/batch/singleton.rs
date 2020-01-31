@@ -5,7 +5,7 @@ use std::{
 
 use tower_service::Service;
 
-use crate::{batch::VerificationRequest, Error, PublicKey};
+use crate::{batch::Request, Error, PublicKey};
 
 /// Performs singleton Ed25519 signature verification.
 ///
@@ -15,7 +15,7 @@ use crate::{batch::VerificationRequest, Error, PublicKey};
 #[derive(Default)]
 pub struct SingletonVerifier;
 
-impl Service<VerificationRequest<'_>> for SingletonVerifier {
+impl Service<Request<'_>> for SingletonVerifier {
     type Response = ();
     type Error = Error;
     type Future = futures::future::Ready<Result<(), Error>>;
@@ -24,9 +24,12 @@ impl Service<VerificationRequest<'_>> for SingletonVerifier {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, req: VerificationRequest) -> Self::Future {
-        let (pk_bytes, sig, msg) = req;
-
-        futures::future::ready(PublicKey::try_from(pk_bytes).and_then(|pk| pk.verify(&sig, msg)))
+    fn call(&mut self, req: Request) -> Self::Future {
+        futures::future::ready(match req {
+            Request::Verify(pk_bytes, sig, msg) => {
+                PublicKey::try_from(pk_bytes).and_then(|pk| pk.verify(&sig, msg))
+            }
+            Request::Flush => Ok(()),
+        })
     }
 }

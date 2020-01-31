@@ -1,5 +1,5 @@
 //! Composable, futures-based batch verification.
-//! 
+//!
 //! This is an experimental interface meant to explore a new programming
 //! model for batch verification of heterogeneous data, using Ed25519
 //! signatures as a testing ground.  Conventional batch verification
@@ -49,7 +49,7 @@
 //! batching within a transaction, within a block, within a chain, etc.
 //!
 //! ## Examples
-//! 
+//!
 //! TODO: add once API is more well-formed.
 
 mod batcher;
@@ -60,5 +60,22 @@ pub use singleton::SingletonVerifier;
 
 use super::{PublicKeyBytes, Signature};
 
-/// A type alias for a batch verification request.
-pub type VerificationRequest<'msg> = (PublicKeyBytes, Signature, &'msg [u8]);
+/// A batch verification request.
+///
+/// This has two variants, to allow manually flushing queued verification
+/// requests, even when the batching service is wrapped in other `tower` layers.
+/// For ergonomics, this type has `From`/`Into` conversions from
+/// `(PublicKeyBytes, Signature, &[u8])`, so most requests should be possible to
+/// express via `(pk_bytes, sig, msg).into()` or a similar idiom.
+pub enum Request<'msg> {
+    /// Request verification of this key-sig-message tuple.
+    Verify(PublicKeyBytes, Signature, &'msg [u8]),
+    /// Flush the current batch, computing all queued verification requests.
+    Flush,
+}
+
+impl<'msg, M: AsRef<[u8]> + ?Sized> From<(PublicKeyBytes, Signature, &'msg M)> for Request<'msg> {
+    fn from(tup: (PublicKeyBytes, Signature, &'msg M)) -> Request<'msg> {
+        Request::Verify(tup.0, tup.1, tup.2.as_ref())
+    }
+}

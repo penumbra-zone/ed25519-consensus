@@ -28,7 +28,7 @@ fn singleton_verify(sigs: &Vec<(PublicKeyBytes, Signature)>) {
     for (pk_bytes, sig) in sigs.iter() {
         // this should call poll_ready but doesn't; this is OK
         // only in this specific case because it's always ready.
-        svc.call((*pk_bytes, *sig, b""));
+        svc.call((*pk_bytes, *sig, b"").into());
     }
 }
 
@@ -40,7 +40,7 @@ fn batch_verify(sigs: &Vec<(PublicKeyBytes, Signature)>) {
         // this should call poll_ready but doesn't; this is OK
         // only in this specific case because we don't want
         // intermediate flushing.
-        svc.call((*pk_bytes, *sig, b""));
+        svc.call((*pk_bytes, *sig, b"").into());
     }
 }
 

@@ -16,7 +16,7 @@ use sha2::{Digest, Sha512};
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tower_service::Service;
 
-use crate::{batch::VerificationRequest, Error, PublicKeyBytes, Signature};
+use crate::{batch::Request, Error, PublicKeyBytes, Signature};
 
 /// Performs batch Ed25519 signature verification.
 pub struct BatchVerifier {
@@ -41,8 +41,11 @@ impl BatchVerifier {
     /// Construct a new batch verifier, targeting `batch_size` batches.
     ///
     /// Incoming verification requests will be buffered until the batch size is
-    /// reached or the service is dropped, at which point the service performs batch
-    /// verification to flush pending requests.
+    /// reached, a flush request is received, or the service is dropped, at which
+    /// point the service performs batch verification to flush pending requests.
+    ///
+    /// Setting a very high batch_size and using manual flush commands prevents
+    /// automatic flushing.
     pub fn new(batch_size: usize) -> BatchVerifier {
         // broadcast::channel requires setting an initial default
         // value, so that there is always one value for a receiver.
@@ -144,7 +147,7 @@ impl BatchVerifier {
     }
 }
 
-impl Service<VerificationRequest<'_>> for BatchVerifier {
+impl Service<Request<'_>> for BatchVerifier {
     type Response = ();
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'static>>;
@@ -159,8 +162,14 @@ impl Service<VerificationRequest<'_>> for BatchVerifier {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, req: VerificationRequest) -> Self::Future {
-        let (pk_bytes, sig, msg) = req;
+    fn call(&mut self, req: Request) -> Self::Future {
+        let (pk_bytes, sig, msg) = match req {
+            Request::Verify(pk_bytes, sig, msg) => (pk_bytes, sig, msg),
+            Request::Flush => {
+                self.flush();
+                return Box::pin(async { Ok(()) });
+            }
+        };
 
         // Compute k now to avoid dependency on the 'msg lifetime.
         let k = Scalar::from_hash(
@@ -172,7 +181,7 @@ impl Service<VerificationRequest<'_>> for BatchVerifier {
 
         self.signatures
             .entry(pk_bytes)
-            .or_insert_with(|| Vec::new())
+            .or_insert_with(|| Vec::with_capacity(1))
             .push((k, sig));
         self.num_sigs += 1;
 
