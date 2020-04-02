@@ -32,6 +32,12 @@ use crate::{Error, Signature};
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PublicKeyBytes(pub(crate) [u8; 32]);
 
+impl AsRef<[u8]> for PublicKeyBytes {
+    fn as_ref(&self) -> &[u8] {
+        &self.0[..]
+    }
+}
+
 impl From<[u8; 32]> for PublicKeyBytes {
     fn from(bytes: [u8; 32]) -> PublicKeyBytes {
         PublicKeyBytes(bytes)
