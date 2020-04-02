@@ -91,6 +91,12 @@ impl From<PublicKey> for PublicKeyBytes {
     }
 }
 
+impl AsRef<[u8]> for PublicKey {
+    fn as_ref(&self) -> &[u8] {
+        &self.A_bytes.0[..]
+    }
+}
+
 impl From<PublicKey> for [u8; 32] {
     fn from(pk: PublicKey) -> [u8; 32] {
         pk.A_bytes.0
