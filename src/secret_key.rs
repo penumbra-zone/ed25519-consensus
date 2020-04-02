@@ -28,6 +28,12 @@ impl<'a> From<&'a SecretKey> for PublicKeyBytes {
     }
 }
 
+impl AsRef<[u8]> for SecretKey {
+    fn as_ref(&self) -> &[u8] {
+        &self.seed[..]
+    }
+}
+
 impl From<SecretKey> for [u8; 32] {
     fn from(sk: SecretKey) -> [u8; 32] {
         sk.seed
