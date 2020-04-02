@@ -3,7 +3,7 @@ name = "ed25519-zebra"
 # Before publishing:
 # - update CHANGELOG.md
 # - update html_root_url
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Henry de Valence <hdevalence@hdevalence.ca>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
