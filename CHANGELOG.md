@@ -2,6 +2,11 @@
 
 Entries are listed in reverse chronological order.
 
+# 0.2.2
+
+* Adds `impl AsRef<[u8]> for PublicKey`.
+* Adds `impl AsRef<[u8]> for SecretKey`.
+
 # 0.2.1
 
 * Adds `impl AsRef<[u8]> for PublicKeyBytes`.
