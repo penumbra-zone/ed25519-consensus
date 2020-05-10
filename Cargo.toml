@@ -27,7 +27,7 @@ rand = { version = "0.7", optional = true }
 
 [dev-dependencies]
 rand = "0.7"
-hex = "0.3"
+hex = "0.4"
 bincode = "1"
 tokio = { version = "0.2", features = ["full"]}
 futures = "0.3"
