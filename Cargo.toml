@@ -14,6 +14,7 @@ description = "Zcash-flavored Ed25519 for use in Zebra."
 features = ["nightly", "batch"]
 
 [dependencies]
+hex = "0.4"
 sha2 = "0.8"
 rand_core = "0.5"
 thiserror = "1"
@@ -27,7 +28,6 @@ rand = { version = "0.7", optional = true }
 
 [dev-dependencies]
 rand = "0.7"
-hex = "0.4"
 bincode = "1"
 tokio = { version = "0.2", features = ["full"]}
 futures = "0.3"

@@ -5,7 +5,7 @@ use sha2::{Digest, Sha512};
 use crate::{PublicKey, PublicKeyBytes, Signature};
 
 /// An Ed25519 secret key.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(from = "SerdeHelper"))]
 #[cfg_attr(feature = "serde", serde(into = "SerdeHelper"))]
@@ -14,6 +14,17 @@ pub struct SecretKey {
     s: Scalar,
     prefix: [u8; 32],
     pk: PublicKey,
+}
+
+impl core::fmt::Debug for SecretKey {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+        fmt.debug_struct("SecretKey")
+            .field("seed", &hex::encode(&self.seed))
+            .field("s", &self.s)
+            .field("prefix", &hex::encode(&self.prefix))
+            .field("pk", &self.pk)
+            .finish()
+    }
 }
 
 impl<'a> From<&'a SecretKey> for PublicKey {

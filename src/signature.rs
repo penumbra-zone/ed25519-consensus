@@ -1,10 +1,19 @@
 /// An Ed25519 signature.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(non_snake_case)]
 pub struct Signature {
     pub(crate) R_bytes: [u8; 32],
     pub(crate) s_bytes: [u8; 32],
+}
+
+impl core::fmt::Debug for Signature {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+        fmt.debug_struct("Signature")
+            .field("R_bytes", &hex::encode(&self.R_bytes))
+            .field("s_bytes", &hex::encode(&self.s_bytes))
+            .finish()
+    }
 }
 
 impl From<[u8; 64]> for Signature {

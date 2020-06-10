@@ -28,9 +28,17 @@ use crate::{Error, Signature};
 /// PublicKey::try_from(pk_bytes)
 ///     .and_then(|pk| pk.verify(&sig, msg));
 /// ```
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PublicKeyBytes(pub(crate) [u8; 32]);
+
+impl core::fmt::Debug for PublicKeyBytes {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+        fmt.debug_tuple("PublicKeyBytes")
+            .field(&hex::encode(&self.0))
+            .finish()
+    }
+}
 
 impl AsRef<[u8]> for PublicKeyBytes {
     fn as_ref(&self) -> &[u8] {
