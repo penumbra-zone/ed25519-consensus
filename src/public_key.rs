@@ -6,7 +6,7 @@ use curve25519_dalek::{
 };
 use sha2::{Digest, Sha512};
 
-use crate::{Error, Signature};
+use crate::{constants, Error, Signature};
 
 /// A refinement type for `[u8; 32]` indicating that the bytes represent an
 /// encoding of an Ed25519 public key.
@@ -115,6 +115,9 @@ impl TryFrom<PublicKeyBytes> for PublicKey {
     type Error = Error;
     #[allow(non_snake_case)]
     fn try_from(bytes: PublicKeyBytes) -> Result<Self, Self::Error> {
+        // libsodium behavior: public key bytes must not be all 0
+        // libsodium 1.0.15 crypto_sign/ed25519/ref10/open.c:138-143
+        // Note: this is different from the description in the spec.
         if bytes.0 == [0; 32] {
             return Err(Error::MalformedPublicKey);
         }
@@ -144,37 +147,43 @@ impl PublicKey {
     /// ## Zcash-specific consensus properties
     ///
     /// Ed25519 checks are described in [§5.4.5][ps] of the Zcash protocol
-    /// specification. However, it is not clear that the protocol specification
-    /// matches the implementation in `libsodium` `1.0.15` used by `zcashd`. Note
-    /// that the precise version is important because `libsodium` changed validation
-    /// rules in point releases.
+    /// specification. Ed25519 validation is not well-specified, and the original
+    /// implementation of JoinSplit signatures for `zcashd` inherited its precise
+    /// validation rules from a specific build configuration of `libsodium`
+    /// `1.0.15`. Note that the precise version is important because `libsodium`
+    /// changed validation rules in point releases.
     ///
-    /// Ed25519 permits implementations to choose whether or not to multiply by the
-    /// cofactor in the verification check. The Zcash spec does not say whether
-    /// cofactor multiplication is performed, but the verification function used by
-    /// `zcashd` does not perform cofactor multiplication, so this implementation
-    /// does not either.
+    /// The additional validation checks are that:
     ///
-    /// The spec says that the signature's `R` value
+    /// * `s` MUST represent an integer less than the prime `l`, per `libsodium`
+    /// `1.0.15` `crypto_sign/ed25519/ref10/open.c:126`;
     ///
-    /// > MUST represent a point on the Ed25519 curve of order at least `l`
+    /// * `R` MUST NOT be one of the excluded encodings, per `libsodium` `1.0.15`
+    /// `crypto_sign/ed25519/ref10/open.c:127`;
     ///
-    /// but `libsodium` `1.0.15` does not seem to check this directly. Instead it
-    /// recomputes the expected `R` value and then compares its encoding against the
-    /// provided encoding of `R`. This implementation does the same check.
-    ///
-    /// `R` is recomputed as `R <- [s]B - [k]A`. This is of low order if and only if
-    /// `s = 0` and `[k]A` is of low order. Assuming that `k`, computed as a hash
-    /// output, is uncontrollable, `[k]A` is of low order if and only if `A` is of
-    /// low order. However, as noted in the [`PublicKey`] docs, public key validation
-    /// does not ensure that `A` is of order at least `l`, only that its encoding is
-    /// nonzero.
+    /// * The public key bytes must not be all 0, per `libsodium` `1.0.15`
+    /// `crypto_sign/ed25519/ref10/open.c:138-143`, which we maintain as an
+    /// invariant on the `PublicKey` type.
     ///
     /// [ps]: https://zips.z.cash/protocol/protocol.pdf#concretejssig
     #[allow(non_snake_case)]
     pub fn verify(&self, signature: &Signature, msg: &[u8]) -> Result<(), Error> {
         // Zcash consensus rule: `s` MUST represent an integer less than the prime `l`.
+        // libsodium 1.0.15 crypto_sign/ed25519/ref10/open.c:126
         let s = Scalar::from_canonical_bytes(signature.s_bytes).ok_or(Error::InvalidSignature)?;
+
+        // Zcash consensus rule: `R` MUST NOT be one of the encodings excluded by libsodium 1.0.15
+        // libsodium 1.0.15 crypto_sign/ed25519/ref10/open.c:127
+        for excluded in &constants::EXCLUDED_POINT_ENCODINGS {
+            if &signature.R_bytes == excluded {
+                return Err(Error::InvalidSignature);
+            }
+        }
+
+        // libsodium behavior: public key bytes must not be all 0
+        // libsodium 1.0.15 crypto_sign/ed25519/ref10/open.c:138-143
+        // Note: this is different from the description in the spec.
+        // No-op, since we maintain this invariant in the PublicKey type.
 
         let k = Scalar::from_hash(
             Sha512::default()
