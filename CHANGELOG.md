@@ -2,6 +2,11 @@
 
 Entries are listed in reverse chronological order.
 
+# 0.4.0
+
+* The sync batch verification api is changed to remove a dependence on the
+  message lifetime that made it difficult to use in async contexts.
+
 # 0.3.0
 
 * Change terminology from secret and public keys to signing and verification
