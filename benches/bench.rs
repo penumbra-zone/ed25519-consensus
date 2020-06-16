@@ -1,47 +1,25 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
+use ed25519_zebra::*;
 use rand::thread_rng;
-use tower::Service;
+use std::convert::TryFrom;
 
-use ed25519_zebra::{batch::*, *};
-
-fn sigs_with_distinct_pubkeys() -> impl Iterator<Item = (PublicKeyBytes, Signature)> {
+fn sigs_with_distinct_pubkeys() -> impl Iterator<Item = (VerificationKeyBytes, Signature)> {
     std::iter::repeat_with(|| {
-        let sk = SecretKey::new(thread_rng());
-        let pk_bytes = PublicKeyBytes::from(&sk);
+        let sk = SigningKey::new(thread_rng());
+        let pk_bytes = VerificationKeyBytes::from(&sk);
         let sig = sk.sign(b"");
         (pk_bytes, sig)
     })
 }
 
-fn sigs_with_same_pubkey() -> impl Iterator<Item = (PublicKeyBytes, Signature)> {
-    let sk = SecretKey::new(thread_rng());
-    let pk_bytes = PublicKeyBytes::from(&sk);
+fn sigs_with_same_pubkey() -> impl Iterator<Item = (VerificationKeyBytes, Signature)> {
+    let sk = SigningKey::new(thread_rng());
+    let pk_bytes = VerificationKeyBytes::from(&sk);
     std::iter::repeat_with(move || {
         let sig = sk.sign(b"");
         (pk_bytes, sig)
     })
-}
-
-fn singleton_verify(sigs: &Vec<(PublicKeyBytes, Signature)>) {
-    let mut svc = SingletonVerifier;
-    for (pk_bytes, sig) in sigs.iter() {
-        // this should call poll_ready but doesn't; this is OK
-        // only in this specific case because it's always ready.
-        svc.call((*pk_bytes, *sig, b"").into());
-    }
-}
-
-fn batch_verify(sigs: &Vec<(PublicKeyBytes, Signature)>) {
-    // Set a very large batch size to prevent intermediate flushing.
-    // The batch will be flushed when svc is dropped.
-    let mut svc = BatchVerifier::new(100_000);
-    for (pk_bytes, sig) in sigs.iter() {
-        // this should call poll_ready but doesn't; this is OK
-        // only in this specific case because we don't want
-        // intermediate flushing.
-        svc.call((*pk_bytes, *sig, b"").into());
-    }
 }
 
 fn bench_batch_verify(c: &mut Criterion) {
@@ -52,18 +30,41 @@ fn bench_batch_verify(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("Unbatched verification", n),
             &sigs,
-            |b, sigs| b.iter(|| singleton_verify(sigs)),
+            |b, sigs| {
+                b.iter(|| {
+                    for (vk_bytes, sig) in sigs.iter() {
+                        let _ =
+                            VerificationKey::try_from(*vk_bytes).and_then(|vk| vk.verify(sig, b""));
+                    }
+                })
+            },
         );
         group.bench_with_input(
             BenchmarkId::new("Signatures with Distinct Pubkeys", n),
             &sigs,
-            |b, sigs| b.iter(|| batch_verify(sigs)),
+            |b, sigs| {
+                b.iter(|| {
+                    let mut batch = BatchVerifier::new();
+                    for (vk_bytes, sig) in sigs.iter().cloned() {
+                        batch.queue(vk_bytes, sig, b"");
+                    }
+                    batch.verify(thread_rng())
+                })
+            },
         );
         let sigs = sigs_with_same_pubkey().take(*n).collect::<Vec<_>>();
         group.bench_with_input(
             BenchmarkId::new("Signatures with the Same Pubkey", n),
             &sigs,
-            |b, sigs| b.iter(|| batch_verify(sigs)),
+            |b, sigs| {
+                b.iter(|| {
+                    let mut batch = BatchVerifier::new();
+                    for (vk_bytes, sig) in sigs.iter().cloned() {
+                        batch.queue(vk_bytes, sig, b"");
+                    }
+                    batch.verify(thread_rng())
+                })
+            },
         );
     }
     group.finish();
