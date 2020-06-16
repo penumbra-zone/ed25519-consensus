@@ -2,6 +2,13 @@
 
 Entries are listed in reverse chronological order.
 
+# 0.3.0
+
+* Change terminology from secret and public keys to signing and verification
+  keys.
+* Remove async batch verification in favor of a sync api; the async approach is
+  to be developed in another crate.
+
 # 0.2.3
 
 * The previous implementation exactly matched the behavior of `libsodium`
