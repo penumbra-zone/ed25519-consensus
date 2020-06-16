@@ -20,24 +20,15 @@ rand_core = "0.5"
 thiserror = "1"
 curve25519-dalek = "2"
 serde = { version = "1", optional = true, features = ["derive"] }
-# These are used only with feature = "batch"
-tower-service = { version = "0.3", optional = true }
-tokio = { version = "0.2", optional = true, features = ["sync"]}
-futures = { version = "0.3", optional = true }
-rand = { version = "0.7", optional = true }
 
 [dev-dependencies]
 rand = "0.7"
 bincode = "1"
-tokio = { version = "0.2", features = ["full"]}
-futures = "0.3"
-tower = "0.3"
 criterion = "0.3"
 
 [features]
 nightly = []
 default = ["serde"]
-batch = ["tower-service", "tokio", "rand", "futures"]
 
 [[test]]
 name = "rfc8032"
@@ -47,9 +38,7 @@ name = "unit_tests"
 
 [[test]]
 name = "batch"
-required-features = ["batch"]
 
 [[bench]]
 name = "bench"
 harness = false
-required-features = ["batch"]
