@@ -9,12 +9,12 @@
 mod batch;
 mod constants;
 mod error;
-mod public_key;
-mod secret_key;
 mod signature;
+mod signing_key;
+mod verification_key;
 
 pub use batch::BatchVerifier;
 pub use error::Error;
-pub use public_key::{PublicKey, PublicKeyBytes};
-pub use secret_key::SecretKey;
 pub use signature::Signature;
+pub use signing_key::SigningKey;
+pub use verification_key::{VerificationKey, VerificationKeyBytes};

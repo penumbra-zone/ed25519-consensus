@@ -9,60 +9,62 @@ use sha2::{Digest, Sha512};
 use crate::{constants, Error, Signature};
 
 /// A refinement type for `[u8; 32]` indicating that the bytes represent an
-/// encoding of an Ed25519 public key.
+/// encoding of an Ed25519 verification key.
 ///
-/// This is useful for representing an encoded public key, while the
-/// [`PublicKey`] type in this library caches other decoded state used in
+/// This is useful for representing an encoded verification key, while the
+/// [`VerificationKey`] type in this library caches other decoded state used in
 /// signature verification.  
 ///
-/// A `PublicKeyBytes` can be used to verify a single signature using the
+/// A `VerificationKeyBytes` can be used to verify a single signature using the
 /// following idiom:
 /// ```
 /// use std::convert::TryFrom;
 /// # use rand::thread_rng;
 /// # use ed25519_zebra::*;
 /// # let msg = b"Zcash";
-/// # let sk = SecretKey::new(thread_rng());
+/// # let sk = SigningKey::new(thread_rng());
 /// # let sig = sk.sign(msg);
-/// # let pk_bytes: PublicKeyBytes = PublicKey::from(&sk).into();
-/// PublicKey::try_from(pk_bytes)
-///     .and_then(|pk| pk.verify(&sig, msg));
+/// # let vk_bytes = VerificationKeyBytes::from(&sk);
+/// VerificationKey::try_from(vk_bytes)
+///     .and_then(|vk| vk.verify(&sig, msg));
 /// ```
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct PublicKeyBytes(pub(crate) [u8; 32]);
+pub struct VerificationKeyBytes(pub(crate) [u8; 32]);
 
-impl core::fmt::Debug for PublicKeyBytes {
+impl core::fmt::Debug for VerificationKeyBytes {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
-        fmt.debug_tuple("PublicKeyBytes")
+        fmt.debug_tuple("VerificationKeyBytes")
             .field(&hex::encode(&self.0))
             .finish()
     }
 }
 
-impl AsRef<[u8]> for PublicKeyBytes {
+impl AsRef<[u8]> for VerificationKeyBytes {
     fn as_ref(&self) -> &[u8] {
         &self.0[..]
     }
 }
 
-impl From<[u8; 32]> for PublicKeyBytes {
-    fn from(bytes: [u8; 32]) -> PublicKeyBytes {
-        PublicKeyBytes(bytes)
+impl From<[u8; 32]> for VerificationKeyBytes {
+    fn from(bytes: [u8; 32]) -> VerificationKeyBytes {
+        VerificationKeyBytes(bytes)
     }
 }
 
-impl From<PublicKeyBytes> for [u8; 32] {
-    fn from(refined: PublicKeyBytes) -> [u8; 32] {
+impl From<VerificationKeyBytes> for [u8; 32] {
+    fn from(refined: VerificationKeyBytes) -> [u8; 32] {
         refined.0
     }
 }
 
-/// A valid Ed25519 public key.
+/// A valid Ed25519 verification key.
+///
+/// This is also called a public key by other implementations.
 ///
 /// This type holds decompressed state used in signature verification; if the
-/// public key may not be used immediately, it is probably better to use
-/// [`PublicKeyBytes`], which is a refinement type for `[u8; 32]`.
+/// verification key may not be used immediately, it is probably better to use
+/// [`VerificationKeyBytes`], which is a refinement type for `[u8; 32]`.
 ///
 /// ## Zcash-specific consensus properties
 ///
@@ -72,7 +74,7 @@ impl From<PublicKeyBytes> for [u8; 32] {
 /// that the precise version is important because `libsodium` changed validation
 /// rules in point releases.
 ///
-/// The spec says that a public key `A` is
+/// The spec says that a verification key `A` is
 ///
 /// > a point of order `l` on the Ed25519 curve, in the encoding specified by…
 ///
@@ -80,41 +82,41 @@ impl From<PublicKeyBytes> for [u8; 32] {
 /// the encoding of `A` is an encoding of a point on the curve and that the
 /// encoding is not all zeros. This implementation matches the `libsodium`
 /// behavior.  This has implications for signature verification behaviour, as noted
-/// in the [`PublicKey::verify`] documentation.
+/// in the [`VerificationKey::verify`] documentation.
 ///
 /// [ps]: https://zips.z.cash/protocol/protocol.pdf#concretejssig
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(try_from = "PublicKeyBytes"))]
-#[cfg_attr(feature = "serde", serde(into = "PublicKeyBytes"))]
+#[cfg_attr(feature = "serde", serde(try_from = "VerificationKeyBytes"))]
+#[cfg_attr(feature = "serde", serde(into = "VerificationKeyBytes"))]
 #[allow(non_snake_case)]
-pub struct PublicKey {
-    pub(crate) A_bytes: PublicKeyBytes,
+pub struct VerificationKey {
+    pub(crate) A_bytes: VerificationKeyBytes,
     pub(crate) minus_A: EdwardsPoint,
 }
 
-impl From<PublicKey> for PublicKeyBytes {
-    fn from(pk: PublicKey) -> PublicKeyBytes {
-        pk.A_bytes
+impl From<VerificationKey> for VerificationKeyBytes {
+    fn from(vk: VerificationKey) -> VerificationKeyBytes {
+        vk.A_bytes
     }
 }
 
-impl AsRef<[u8]> for PublicKey {
+impl AsRef<[u8]> for VerificationKey {
     fn as_ref(&self) -> &[u8] {
         &self.A_bytes.0[..]
     }
 }
 
-impl From<PublicKey> for [u8; 32] {
-    fn from(pk: PublicKey) -> [u8; 32] {
-        pk.A_bytes.0
+impl From<VerificationKey> for [u8; 32] {
+    fn from(vk: VerificationKey) -> [u8; 32] {
+        vk.A_bytes.0
     }
 }
 
-impl TryFrom<PublicKeyBytes> for PublicKey {
+impl TryFrom<VerificationKeyBytes> for VerificationKey {
     type Error = Error;
     #[allow(non_snake_case)]
-    fn try_from(bytes: PublicKeyBytes) -> Result<Self, Self::Error> {
+    fn try_from(bytes: VerificationKeyBytes) -> Result<Self, Self::Error> {
         // libsodium behavior: public key bytes must not be all 0
         // libsodium 1.0.15 crypto_sign/ed25519/ref10/open.c:138-143
         // Note: this is different from the description in the spec.
@@ -126,22 +128,22 @@ impl TryFrom<PublicKeyBytes> for PublicKey {
             .decompress()
             .ok_or(Error::MalformedPublicKey)?;
 
-        Ok(PublicKey {
+        Ok(VerificationKey {
             A_bytes: bytes,
             minus_A: -A,
         })
     }
 }
 
-impl TryFrom<[u8; 32]> for PublicKey {
+impl TryFrom<[u8; 32]> for VerificationKey {
     type Error = Error;
     fn try_from(bytes: [u8; 32]) -> Result<Self, Self::Error> {
         use std::convert::TryInto;
-        PublicKeyBytes::from(bytes).try_into()
+        VerificationKeyBytes::from(bytes).try_into()
     }
 }
 
-impl PublicKey {
+impl VerificationKey {
     /// Verify a purported `signature` on the given `msg`.
     ///
     /// ## Zcash-specific consensus properties
@@ -163,7 +165,7 @@ impl PublicKey {
     ///
     /// * The public key bytes must not be all 0, per `libsodium` `1.0.15`
     /// `crypto_sign/ed25519/ref10/open.c:138-143`, which we maintain as an
-    /// invariant on the `PublicKey` type.
+    /// invariant on the `VerificationKey` type.
     ///
     /// [ps]: https://zips.z.cash/protocol/protocol.pdf#concretejssig
     #[allow(non_snake_case)]

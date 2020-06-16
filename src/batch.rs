@@ -8,7 +8,7 @@ use curve25519_dalek::{
 use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha512};
 
-use crate::{Error, PublicKeyBytes, Signature};
+use crate::{Error, Signature, VerificationKeyBytes};
 
 // Shim to generate a u128 without importing `rand`.
 fn gen_u128<R: RngCore + CryptoRng>(mut rng: R) -> u128 {
@@ -19,13 +19,12 @@ fn gen_u128<R: RngCore + CryptoRng>(mut rng: R) -> u128 {
 
 /// Performs batch Ed25519 signature verification.
 ///
-/// Batch verification asks whether *all*
-/// signatures in some set are valid, rather than asking whether *each* of them
-/// is valid. This allows sharing computations among all signature verifications,
-/// performing less work overall at the cost of higher latency (the entire batch
-/// must complete), complexity of caller code (which must assemble a batch of
-/// signatures across work-items), and loss of the ability to easily pinpoint
-/// failing signatures.
+/// Batch verification asks whether *all* signatures in some set are valid,
+/// rather than asking whether *each* of them is valid. This allows sharing
+/// computations among all signature verifications, performing less work overall
+/// at the cost of higher latency (the entire batch must complete), complexity of
+/// caller code (which must assemble a batch of signatures across work-items),
+/// and loss of the ability to easily pinpoint failing signatures.
 ///
 /// In addition to these general tradeoffs, design flaws in Ed25519 specifically
 /// mean that batched verification may not agree with individual verification.
@@ -35,37 +34,36 @@ fn gen_u128<R: RngCore + CryptoRng>(mut rng: R) -> u128 {
 /// should therefore not be used in consensus-critical applications.**
 ///
 /// This batch verification implementation is adaptive in the sense that it
-/// detects multiple signatures created with the same public key and
+/// detects multiple signatures created with the same verification key and
 /// automatically coalesces terms in the final verification equation. In the
-/// limiting case where all signatures in the batch are made with the same public
-/// key, coalesced batch verification runs twice as fast as ordinary batch
-/// verification.
+/// limiting case where all signatures in the batch are made with the same
+/// verification key, coalesced batch verification runs twice as fast as ordinary
+/// batch verification.
 ///
 /// ![benchmark](https://www.zfnd.org/images/coalesced-batch-graph.png)
 ///
-/// This optimization doesn't help much with Zcash, where public
-/// keys are random, but could be useful in proof-of-stake systems where
-/// signatures come from a set of validators (except for the consensus behavior
-/// described above, which will be addressed in a future version of this
-/// library).
+/// This optimization doesn't help much with Zcash, where public keys are random,
+/// but could be useful in proof-of-stake systems where signatures come from a
+/// set of validators (except for the consensus behavior described above, which
+/// will be addressed in a future version of this library).
 ///
 /// # Example
 /// ```
 /// # use ed25519_zebra::*;
 /// let mut batch = BatchVerifier::new();
 /// for _ in 0..32 {
-///     let sk = SecretKey::new(rand::thread_rng());
-///     let pk_bytes = PublicKeyBytes::from(&sk);
+///     let sk = SigningKey::new(rand::thread_rng());
+///     let vk_bytes = VerificationKeyBytes::from(&sk);
 ///     let msg = b"BatchVerifyTest";
 ///     let sig = sk.sign(&msg[..]);
-///     batch.queue(pk_bytes, sig, &msg[..]);
+///     batch.queue(vk_bytes, sig, &msg[..]);
 /// }
 /// assert!(batch.verify(rand::thread_rng()).is_ok());
 /// ```
 #[derive(Default)]
 pub struct BatchVerifier {
     /// Signature data queued for verification.
-    signatures: HashMap<PublicKeyBytes, Vec<(Scalar, Signature)>>,
+    signatures: HashMap<VerificationKeyBytes, Vec<(Scalar, Signature)>>,
     /// Caching this count avoids a hash traversal to figure out
     /// how much to preallocate.
     batch_size: usize,
@@ -78,17 +76,17 @@ impl BatchVerifier {
     }
 
     /// Queue a (key, signature, message) tuple for verification.
-    pub fn queue(&mut self, pk_bytes: PublicKeyBytes, sig: Signature, msg: &[u8]) {
+    pub fn queue(&mut self, vk_bytes: VerificationKeyBytes, sig: Signature, msg: &[u8]) {
         // Compute k now to avoid dependency on the msg lifetime.
         let k = Scalar::from_hash(
             Sha512::default()
                 .chain(&sig.R_bytes[..])
-                .chain(&pk_bytes.0[..])
+                .chain(&vk_bytes.0[..])
                 .chain(msg),
         );
 
         self.signatures
-            .entry(pk_bytes)
+            .entry(vk_bytes)
             // The common case is 1 signature per public key.
             // We could also consider using a smallvec here.
             .or_insert_with(|| Vec::with_capacity(1))
@@ -112,7 +110,7 @@ impl BatchVerifier {
         // [-sum(z_i * s_i)]B + sum([z_i]R_i) + sum([z_i * k_i]A_i) = 0.
         //
         // where for each signature i,
-        // - A_i is the public key;
+        // - A_i is the verification key;
         // - R_i is the signature's R value;
         // - s_i is the signature's s value;
         // - k_i is the hash of the message and other data;
@@ -121,15 +119,15 @@ impl BatchVerifier {
         // Normally n signatures would require a multiscalar multiplication of
         // size 2*n + 1, together with 2*n point decompressions (to obtain A_i
         // and R_i). However, because we store batch entries in a HashMap
-        // indexed by the public key, we can "coalesce" all z_i * k_i terms for
-        // each distinct public key into a single coefficient.
+        // indexed by the verification key, we can "coalesce" all z_i * k_i
+        // terms for each distinct verification key into a single coefficient.
         //
-        // For n signatures from m public keys, this approach instead requires a
-        // multiscalar multiplication of size n + m + 1 together with n + m
-        // point decompressions. When m = n, so all signatures are from distinct
-        // public keys, this is as efficient as the usual method. However, when
-        // m = 1 and all signatures are from a single public key, this is nearly
-        // twice as fast.
+        // For n signatures from m verification keys, this approach instead
+        // requires a multiscalar multiplication of size n + m + 1 together with
+        // n + m point decompressions. When m = n, so all signatures are from
+        // distinct verification keys, this is as efficient as the usual method.
+        // However, when m = 1 and all signatures are from a single verification
+        // key, this is nearly twice as fast.
 
         let m = self.signatures.keys().count();
 
@@ -139,8 +137,8 @@ impl BatchVerifier {
         let mut Rs = Vec::with_capacity(self.batch_size);
         let mut B_coeff = Scalar::zero();
 
-        for (pk_bytes, sigs) in self.signatures.iter() {
-            let A = CompressedEdwardsY(pk_bytes.0)
+        for (vk_bytes, sigs) in self.signatures.iter() {
+            let A = CompressedEdwardsY(vk_bytes.0)
                 .decompress()
                 .ok_or(Error::InvalidSignature)?;
 

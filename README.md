@@ -14,10 +14,6 @@ specifically, and since it is unreasonable to expect an upstream dependency to
 maintain Zcash-specific behavior, this crate provides an Ed25519 implementation
 matching the Zcash consensus rules exactly.
 
-This crate also provides an experimental interface meant to explore batch
-verification of heterogeneous data, documented in the `batch` module and
-feature-gated behind the `batch` feature.
-
 ## Example
 
 ```
@@ -27,18 +23,23 @@ use ed25519_zebra::*;
 
 let msg = b"Zcash";
 
-// Generate a secret key and sign the message
-let sk = SecretKey::new(thread_rng());
-let sig = sk.sign(msg);
+// Signer's context
+let (vk_bytes, sig_bytes) = {
+    // Generate a signing key and sign the message
+    let sk = SigningKey::new(thread_rng());
+    let sig = sk.sign(msg);
 
-// Types can be converted to raw byte arrays with From/Into
-let sig_bytes: [u8; 64] = sig.into();
-let pk_bytes: [u8; 32] = PublicKey::from(&sk).into();
+    // Types can be converted to raw byte arrays with From/Into
+    let sig_bytes: [u8; 64] = sig.into();
+    let vk_bytes: [u8; 32] = VerificationKey::from(&sk).into();
+
+    (vk_bytes, sig_bytes)
+};
 
 // Verify the signature
 assert!(
-    PublicKey::try_from(pk_bytes)
-        .and_then(|pk| pk.verify(&sig_bytes.into(), msg))
+    VerificationKey::try_from(vk_bytes)
+        .and_then(|vk| vk.verify(&sig_bytes.into(), msg))
         .is_ok()
 );
 ```

@@ -6,8 +6,8 @@ use ed25519_zebra::*;
 fn batch_verify() {
     let mut batch = BatchVerifier::new();
     for _ in 0..32 {
-        let sk = SecretKey::new(thread_rng());
-        let pk_bytes = PublicKeyBytes::from(&sk);
+        let sk = SigningKey::new(thread_rng());
+        let pk_bytes = VerificationKeyBytes::from(&sk);
         let msg = b"BatchVerifyTest";
         let sig = sk.sign(&msg[..]);
         batch.queue(pk_bytes, sig, &msg[..]);

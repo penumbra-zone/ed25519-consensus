@@ -1,12 +1,12 @@
 use rand::thread_rng;
 
-use ed25519_zebra::{PublicKey, PublicKeyBytes, SecretKey};
+use ed25519_zebra::{SigningKey, VerificationKey, VerificationKeyBytes};
 
 #[test]
 fn asref_vs_into_bytes() {
-    let sk = SecretKey::new(thread_rng());
-    let pk = PublicKey::from(&sk);
-    let pkb = PublicKeyBytes::from(&sk);
+    let sk = SigningKey::new(thread_rng());
+    let pk = VerificationKey::from(&sk);
+    let pkb = VerificationKeyBytes::from(&sk);
 
     let sk_array: [u8; 32] = sk.into();
     let pk_array: [u8; 32] = pk.into();
@@ -19,8 +19,8 @@ fn asref_vs_into_bytes() {
 
 #[test]
 fn sign_and_verify() {
-    let sk = SecretKey::new(thread_rng());
-    let pk = PublicKey::from(&sk);
+    let sk = SigningKey::new(thread_rng());
+    let pk = VerificationKey::from(&sk);
 
     let msg = b"ed25519-zebra test message";
 
