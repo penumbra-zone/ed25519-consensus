@@ -44,9 +44,9 @@ fn bench_batch_verify(c: &mut Criterion) {
             &sigs,
             |b, sigs| {
                 b.iter(|| {
-                    let mut batch = BatchVerifier::new();
+                    let mut batch = batch::Verifier::new();
                     for (vk_bytes, sig) in sigs.iter().cloned() {
-                        batch.queue(vk_bytes, sig, b"");
+                        batch.queue((vk_bytes, sig, b""));
                     }
                     batch.verify(thread_rng())
                 })
@@ -58,9 +58,9 @@ fn bench_batch_verify(c: &mut Criterion) {
             &sigs,
             |b, sigs| {
                 b.iter(|| {
-                    let mut batch = BatchVerifier::new();
+                    let mut batch = batch::Verifier::new();
                     for (vk_bytes, sig) in sigs.iter().cloned() {
-                        batch.queue(vk_bytes, sig, b"");
+                        batch.queue((vk_bytes, sig, b""));
                     }
                     batch.verify(thread_rng())
                 })

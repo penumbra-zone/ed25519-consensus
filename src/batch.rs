@@ -1,3 +1,47 @@
+//! Performs batch Ed25519 signature verification.
+//!
+//! Batch verification asks whether *all* signatures in some set are valid,
+//! rather than asking whether *each* of them is valid. This allows sharing
+//! computations among all signature verifications, performing less work overall
+//! at the cost of higher latency (the entire batch must complete), complexity of
+//! caller code (which must assemble a batch of signatures across work-items),
+//! and loss of the ability to easily pinpoint failing signatures.
+//!
+//! In addition to these general tradeoffs, design flaws in Ed25519 specifically
+//! mean that batched verification may not agree with individual verification.
+//! Some signature may verify as part of a batch but not on its own. In
+//! particular, this batching implementation does not perform the same
+//! verification checks as the standalone implementation in this crate. **It
+//! should therefore not be used in consensus-critical applications.**
+//!
+//! This batch verification implementation is adaptive in the sense that it
+//! detects multiple signatures created with the same verification key and
+//! automatically coalesces terms in the final verification equation. In the
+//! limiting case where all signatures in the batch are made with the same
+//! verification key, coalesced batch verification runs twice as fast as ordinary
+//! batch verification.
+//!
+//! ![benchmark](https://www.zfnd.org/images/coalesced-batch-graph.png)
+//!
+//! This optimization doesn't help much with Zcash, where public keys are random,
+//! but could be useful in proof-of-stake systems where signatures come from a
+//! set of validators (except for the consensus behavior described above, which
+//! will be addressed in a future version of this library).
+//!
+//! # Example
+//! ```
+//! # use ed25519_zebra::*;
+//! let mut batch = batch::Verifier::new();
+//! for _ in 0..32 {
+//!     let sk = SigningKey::new(rand::thread_rng());
+//!     let vk_bytes = VerificationKeyBytes::from(&sk);
+//!     let msg = b"BatchVerifyTest";
+//!     let sig = sk.sign(&msg[..]);
+//!     batch.queue((vk_bytes, sig, &msg[..]));
+//! }
+//! assert!(batch.verify(rand::thread_rng()).is_ok());
+//! ```
+
 use std::collections::HashMap;
 
 use curve25519_dalek::{
@@ -17,66 +61,20 @@ fn gen_u128<R: RngCore + CryptoRng>(mut rng: R) -> u128 {
     u128::from_le_bytes(bytes)
 }
 
-/// Performs batch Ed25519 signature verification.
+/// A batch verification item.
 ///
-/// Batch verification asks whether *all* signatures in some set are valid,
-/// rather than asking whether *each* of them is valid. This allows sharing
-/// computations among all signature verifications, performing less work overall
-/// at the cost of higher latency (the entire batch must complete), complexity of
-/// caller code (which must assemble a batch of signatures across work-items),
-/// and loss of the ability to easily pinpoint failing signatures.
-///
-/// In addition to these general tradeoffs, design flaws in Ed25519 specifically
-/// mean that batched verification may not agree with individual verification.
-/// Some signature may verify as part of a batch but not on its own. In
-/// particular, this batching implementation does not perform the same
-/// verification checks as the standalone implementation in this crate. **It
-/// should therefore not be used in consensus-critical applications.**
-///
-/// This batch verification implementation is adaptive in the sense that it
-/// detects multiple signatures created with the same verification key and
-/// automatically coalesces terms in the final verification equation. In the
-/// limiting case where all signatures in the batch are made with the same
-/// verification key, coalesced batch verification runs twice as fast as ordinary
-/// batch verification.
-///
-/// ![benchmark](https://www.zfnd.org/images/coalesced-batch-graph.png)
-///
-/// This optimization doesn't help much with Zcash, where public keys are random,
-/// but could be useful in proof-of-stake systems where signatures come from a
-/// set of validators (except for the consensus behavior described above, which
-/// will be addressed in a future version of this library).
-///
-/// # Example
-/// ```
-/// # use ed25519_zebra::*;
-/// let mut batch = BatchVerifier::new();
-/// for _ in 0..32 {
-///     let sk = SigningKey::new(rand::thread_rng());
-///     let vk_bytes = VerificationKeyBytes::from(&sk);
-///     let msg = b"BatchVerifyTest";
-///     let sig = sk.sign(&msg[..]);
-///     batch.queue(vk_bytes, sig, &msg[..]);
-/// }
-/// assert!(batch.verify(rand::thread_rng()).is_ok());
-/// ```
-#[derive(Default)]
-pub struct BatchVerifier {
-    /// Signature data queued for verification.
-    signatures: HashMap<VerificationKeyBytes, Vec<(Scalar, Signature)>>,
-    /// Caching this count avoids a hash traversal to figure out
-    /// how much to preallocate.
-    batch_size: usize,
+/// This struct exists to allow batch processing to be decoupled from the
+/// lifetime of the message. This is useful when using the batch verification API
+/// in an async context.
+pub struct Item {
+    vk_bytes: VerificationKeyBytes,
+    sig: Signature,
+    k: Scalar,
 }
 
-impl BatchVerifier {
-    /// Construct a new batch verifier.
-    pub fn new() -> BatchVerifier {
-        BatchVerifier::default()
-    }
-
-    /// Queue a (key, signature, message) tuple for verification.
-    pub fn queue(&mut self, vk_bytes: VerificationKeyBytes, sig: Signature, msg: &[u8]) {
+impl<'msg, M: AsRef<[u8]> + ?Sized> From<(VerificationKeyBytes, Signature, &'msg M)> for Item {
+    fn from(tup: (VerificationKeyBytes, Signature, &'msg M)) -> Self {
+        let (vk_bytes, sig, msg) = tup;
         // Compute k now to avoid dependency on the msg lifetime.
         let k = Scalar::from_hash(
             Sha512::default()
@@ -84,6 +82,29 @@ impl BatchVerifier {
                 .chain(&vk_bytes.0[..])
                 .chain(msg),
         );
+        Self { vk_bytes, sig, k }
+    }
+}
+
+/// A batch verification context.
+#[derive(Default)]
+pub struct Verifier {
+    /// Signature data queued for verification.
+    signatures: HashMap<VerificationKeyBytes, Vec<(Scalar, Signature)>>,
+    /// Caching this count avoids a hash traversal to figure out
+    /// how much to preallocate.
+    batch_size: usize,
+}
+
+impl Verifier {
+    /// Construct a new batch verifier.
+    pub fn new() -> Verifier {
+        Verifier::default()
+    }
+
+    /// Queue a (key, signature, message) tuple for verification.
+    pub fn queue<I: Into<Item>>(&mut self, item: I) {
+        let Item { vk_bytes, sig, k } = item.into();
 
         self.signatures
             .entry(vk_bytes)
