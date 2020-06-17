@@ -2,6 +2,11 @@
 
 Entries are listed in reverse chronological order.
 
+# 0.4.1
+
+* Change `docs.rs` configuration in `Cargo.toml` to not refer to the removed
+  `batch` feature so that the docs render correctly on `docs.rs`.
+
 # 0.4.0
 
 * The sync batch verification api is changed to remove a dependence on the

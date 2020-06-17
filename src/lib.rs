@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/ed25519-zebra/0.4.0")]
+#![doc(html_root_url = "https://docs.rs/ed25519-zebra/0.4.1")]
 #![cfg_attr(feature = "nightly", feature(doc_cfg))]
 #![cfg_attr(feature = "nightly", feature(external_doc))]
 #![cfg_attr(feature = "nightly", doc(include = "../README.md"))]
