@@ -2,6 +2,10 @@
 
 Entries are listed in reverse chronological order.
 
+# 1.0.0-pre.0
+
+* Add a note about versioning to handle ZIP 215.
+
 # 0.4.1
 
 * Change `docs.rs` configuration in `Cargo.toml` to not refer to the removed
