@@ -9,10 +9,15 @@
 //!
 //! In addition to these general tradeoffs, design flaws in Ed25519 specifically
 //! mean that batched verification may not agree with individual verification.
-//! Some signature may verify as part of a batch but not on its own. In
-//! particular, this batching implementation does not perform the same
-//! verification checks as the standalone implementation in this crate. **It
-//! should therefore not be used in consensus-critical applications.**
+//! Some signatures may verify as part of a batch but not on their own.
+//! This problem is fixed by [ZIP215], a precise specification for edge cases
+//! in Ed25519 signature validation that ensures that batch verification agrees
+//! with individual verification in all cases.
+//!
+//! This crate implements ZIP215, so batch verification always agrees with
+//! individual verification, but this is not guaranteed by other implementations.
+//! **Be extremely careful when using Ed25519 in a consensus-critical context
+//! like a blockchain.**
 //!
 //! This batch verification implementation is adaptive in the sense that it
 //! detects multiple signatures created with the same verification key and
@@ -25,8 +30,7 @@
 //!
 //! This optimization doesn't help much with Zcash, where public keys are random,
 //! but could be useful in proof-of-stake systems where signatures come from a
-//! set of validators (except for the consensus behavior described above, which
-//! will be addressed in a future version of this library).
+//! set of validators (provided that system uses the ZIP215 rules).
 //!
 //! # Example
 //! ```
@@ -41,6 +45,8 @@
 //! }
 //! assert!(batch.verify(rand::thread_rng()).is_ok());
 //! ```
+//!
+//! [ZIP215]: https://github.com/zcash/zips/blob/master/zip-0215.rst
 
 use std::collections::HashMap;
 

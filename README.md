@@ -14,16 +14,26 @@ specifically, and since it is unreasonable to expect an upstream dependency to
 maintain Zcash-specific behavior, this crate provides an Ed25519 implementation
 matching the Zcash consensus rules exactly.
 
+However, this library may be of independent interest, as it implements
+ZIP215, a set of precisely specified validation rules for Ed25519 that make
+individual verification consistent with batch verification and are
+backwards-compatible with all existing Ed25519 signatures. Any non-Zcash users 
+should use the ZIP215 rules:
+```toml
+ed25519-zebra = "2"
+```
+
 ## ZIP 215 and changes to Zcash-flavored Ed25519
 
 [Zcash Improvement Proposal 215][ZIP215] changes validation criteria for
 Ed25519 signatures in Zcash after its activation (currently scheduled for the
-Canopy network upgrade at block height 1046400).  These changes remove the
+Canopy network upgrade at block height 1046400). These changes remove the
 dependence on validation rules inherited from a specific point release of
-`libsodium` and make individual verification consistent with batch verification.
+`libsodium` and make individual verification consistent with batch
+verification. More details and motivation are available in the text of [ZIP215].
 
 The `1.x` series of this crate implements the legacy, pre-ZIP-215 validation
-criteria; the `2.x` series of this crate will implement the post-ZIP-215
+criteria; the `2.x` series of this crate implements the post-ZIP-215
 validation criteria.  Users (like Zebra or Zcashd) who need to handle the
 upgrade can use both versions simultaneously using cargo renaming, e.g.,
 ```toml

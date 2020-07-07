@@ -7,7 +7,6 @@
 //! Docs require the `nightly` feature until RFC 1990 lands.
 
 pub mod batch;
-mod constants;
 mod error;
 mod signature;
 mod signing_key;
