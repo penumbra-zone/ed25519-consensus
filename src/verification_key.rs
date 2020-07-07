@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use curve25519_dalek::{
     edwards::{CompressedEdwardsY, EdwardsPoint},
@@ -43,6 +43,19 @@ impl core::fmt::Debug for VerificationKeyBytes {
 impl AsRef<[u8]> for VerificationKeyBytes {
     fn as_ref(&self) -> &[u8] {
         &self.0[..]
+    }
+}
+
+impl TryFrom<&[u8]> for VerificationKeyBytes {
+    type Error = Error;
+    fn try_from(slice: &[u8]) -> Result<VerificationKeyBytes, Error> {
+        if slice.len() == 32 {
+            let mut bytes = [0u8; 32];
+            bytes[..].copy_from_slice(slice);
+            Ok(bytes.into())
+        } else {
+            Err(Error::InvalidSliceLength)
+        }
     }
 }
 
@@ -135,10 +148,16 @@ impl TryFrom<VerificationKeyBytes> for VerificationKey {
     }
 }
 
+impl TryFrom<&[u8]> for VerificationKey {
+    type Error = Error;
+    fn try_from(slice: &[u8]) -> Result<VerificationKey, Error> {
+        VerificationKeyBytes::try_from(slice).and_then(|vkb| vkb.try_into())
+    }
+}
+
 impl TryFrom<[u8; 32]> for VerificationKey {
     type Error = Error;
     fn try_from(bytes: [u8; 32]) -> Result<Self, Self::Error> {
-        use std::convert::TryInto;
         VerificationKeyBytes::from(bytes).try_into()
     }
 }

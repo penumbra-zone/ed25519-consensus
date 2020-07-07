@@ -1,8 +1,10 @@
+use std::convert::TryFrom;
+
 use curve25519_dalek::{constants, scalar::Scalar};
 use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha512};
 
-use crate::{Signature, VerificationKey, VerificationKeyBytes};
+use crate::{Error, Signature, VerificationKey, VerificationKeyBytes};
 
 /// An Ed25519 signing key.
 ///
@@ -50,6 +52,19 @@ impl AsRef<[u8]> for SigningKey {
 impl From<SigningKey> for [u8; 32] {
     fn from(sk: SigningKey) -> [u8; 32] {
         sk.seed
+    }
+}
+
+impl TryFrom<&[u8]> for SigningKey {
+    type Error = Error;
+    fn try_from(slice: &[u8]) -> Result<SigningKey, Error> {
+        if slice.len() == 32 {
+            let mut bytes = [0u8; 32];
+            bytes[..].copy_from_slice(slice);
+            Ok(bytes.into())
+        } else {
+            Err(Error::InvalidSliceLength)
+        }
     }
 }
 

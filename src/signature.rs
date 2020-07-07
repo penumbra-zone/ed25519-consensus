@@ -1,3 +1,6 @@
+use crate::Error;
+use std::convert::TryFrom;
+
 /// An Ed25519 signature.
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -24,6 +27,20 @@ impl From<[u8; 64]> for Signature {
         let mut s_bytes = [0; 32];
         s_bytes.copy_from_slice(&bytes[32..64]);
         Signature { R_bytes, s_bytes }
+    }
+}
+
+impl TryFrom<&[u8]> for Signature {
+    type Error = Error;
+
+    fn try_from(slice: &[u8]) -> Result<Signature, Error> {
+        if slice.len() == 64 {
+            let mut bytes = [0u8; 64];
+            bytes[..].copy_from_slice(slice);
+            Ok(bytes.into())
+        } else {
+            Err(Error::InvalidSliceLength)
+        }
     }
 }
 

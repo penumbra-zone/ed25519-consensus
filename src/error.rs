@@ -12,4 +12,7 @@ pub enum Error {
     /// Signature verification failed.
     #[error("Invalid signature.")]
     InvalidSignature,
+    /// A byte slice of the wrong length was supplied during parsing.
+    #[error("Invalid length when parsing byte slice.")]
+    InvalidSliceLength,
 }
