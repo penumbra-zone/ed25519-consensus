@@ -2,6 +2,10 @@
 
 Entries are listed in reverse chronological order.
 
+# 1.0.0
+
+* Adds `impl TryFrom<&[u8]>` for all types.
+
 # 1.0.0-pre.0
 
 * Add a note about versioning to handle ZIP 215.
