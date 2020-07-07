@@ -2,6 +2,11 @@
 
 Entries are listed in reverse chronological order.
 
+# 2.0.0
+
+* Implements ZIP 215, so that batched and individual verification
+  agree on whether signatures are valid.
+
 # 1.0.0
 
 * Adds `impl TryFrom<&[u8]>` for all types.

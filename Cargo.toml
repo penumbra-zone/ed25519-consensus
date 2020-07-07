@@ -3,7 +3,7 @@ name = "ed25519-zebra"
 # Before publishing:
 # - update CHANGELOG.md
 # - update html_root_url
-version = "1.0.0"
+version = "2.0.0"
 authors = ["Henry de Valence <hdevalence@hdevalence.ca>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
@@ -25,7 +25,7 @@ serde = { version = "1", optional = true, features = ["derive"] }
 rand = "0.7"
 bincode = "1"
 criterion = "0.3"
-ed25519-zebra-legacy = { package = "ed25519-zebra", version = "1.0.0-pre.0" }
+ed25519-zebra-legacy = { package = "ed25519-zebra", version = "1" }
 color-eyre = "0.4"
 once_cell = "1.4"
 
