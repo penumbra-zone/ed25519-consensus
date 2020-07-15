@@ -2,6 +2,12 @@
 
 Entries are listed in reverse chronological order.
 
+# 2.1.0
+
+* Implements `Clone + Debug` for `batch::Item` and provides
+  `batch::Item::verify_single` to perform fallback verification in case
+  of batch failure.
+
 # 2.0.0
 
 * Implements ZIP 215, so that batched and individual verification
