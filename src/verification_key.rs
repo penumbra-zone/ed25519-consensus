@@ -154,7 +154,7 @@ impl VerificationKey {
     /// ## Zcash-specific consensus properties
     ///
     /// Ed25519 checks are described in [§5.4.5][ps] of the Zcash protocol specification and in
-    /// [ZIP 215].  The verification criteria for an (encoded) signature `(R_bytes, s_bytes)` with
+    /// [ZIP215].  The verification criteria for an (encoded) signature `(R_bytes, s_bytes)` with
     /// (encoded) verification key `A_bytes` are:
     ///
     /// * `A_bytes` and `R_bytes` MUST be encodings of points `A` and `R` respectively on the
@@ -169,9 +169,21 @@ impl VerificationKey {
     ///   used.
     ///
     /// [ps]: https://zips.z.cash/protocol/protocol.pdf#concreteed25519
-    /// [ZIP 215]: https://github.com/zcash/zips/blob/master/zip-0215.rst
-    #[allow(non_snake_case)]
+    /// [ZIP215]: https://github.com/zcash/zips/blob/master/zip-0215.rst
     pub fn verify(&self, signature: &Signature, msg: &[u8]) -> Result<(), Error> {
+        let k = Scalar::from_hash(
+            Sha512::default()
+                .chain(&signature.R_bytes[..])
+                .chain(&self.A_bytes.0[..])
+                .chain(msg),
+        );
+        self.verify_prehashed(signature, k)
+    }
+
+    /// Verify a signature with a prehashed `k` value. Note that this is not the
+    /// same as "prehashing" in RFC8032.
+    #[allow(non_snake_case)]
+    pub(crate) fn verify_prehashed(&self, signature: &Signature, k: Scalar) -> Result<(), Error> {
         // `s_bytes` MUST represent an integer less than the prime `l`.
         let s = Scalar::from_canonical_bytes(signature.s_bytes).ok_or(Error::InvalidSignature)?;
         // `R_bytes` MUST be an encoding of a point on the twisted Edwards form of Curve25519.
@@ -179,13 +191,6 @@ impl VerificationKey {
             .decompress()
             .ok_or(Error::InvalidSignature)?;
         // We checked the encoding of A_bytes when constructing `self`.
-
-        let k = Scalar::from_hash(
-            Sha512::default()
-                .chain(&signature.R_bytes[..])
-                .chain(&self.A_bytes.0[..])
-                .chain(msg),
-        );
 
         //       [8][s]B = [8]R + [8][k]A
         // <=>   [8]R = [8][s]B - [8][k]A

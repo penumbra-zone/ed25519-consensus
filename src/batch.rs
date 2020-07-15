@@ -48,7 +48,7 @@
 //!
 //! [ZIP215]: https://github.com/zcash/zips/blob/master/zip-0215.rst
 
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::TryFrom};
 
 use curve25519_dalek::{
     edwards::{CompressedEdwardsY, EdwardsPoint},
@@ -58,7 +58,7 @@ use curve25519_dalek::{
 use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha512};
 
-use crate::{Error, Signature, VerificationKeyBytes};
+use crate::{Error, Signature, VerificationKey, VerificationKeyBytes};
 
 // Shim to generate a u128 without importing `rand`.
 fn gen_u128<R: RngCore + CryptoRng>(mut rng: R) -> u128 {
@@ -72,6 +72,7 @@ fn gen_u128<R: RngCore + CryptoRng>(mut rng: R) -> u128 {
 /// This struct exists to allow batch processing to be decoupled from the
 /// lifetime of the message. This is useful when using the batch verification API
 /// in an async context.
+#[derive(Clone, Debug)]
 pub struct Item {
     vk_bytes: VerificationKeyBytes,
     sig: Signature,
@@ -89,6 +90,20 @@ impl<'msg, M: AsRef<[u8]> + ?Sized> From<(VerificationKeyBytes, Signature, &'msg
                 .chain(msg),
         );
         Self { vk_bytes, sig, k }
+    }
+}
+
+impl Item {
+    /// Perform non-batched verification of this `Item`.
+    ///
+    /// This is useful (in combination with `Item::clone`) for implementing fallback
+    /// logic when batch verification fails. In contrast to
+    /// [`VerificationKey::verify`](crate::VerificationKey::verify), which requires
+    /// borrowing the message data, the `Item` type is unlinked from the lifetime of
+    /// the message.
+    pub fn verify_single(self) -> Result<(), Error> {
+        VerificationKey::try_from(self.vk_bytes)
+            .and_then(|vk| vk.verify_prehashed(&self.sig, self.k))
     }
 }
 
