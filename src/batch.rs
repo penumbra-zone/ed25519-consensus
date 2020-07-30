@@ -209,7 +209,7 @@ impl Verifier {
             once(&B).chain(As.iter()).chain(Rs.iter()),
         );
 
-        if check.is_identity() {
+        if check.mul_by_cofactor().is_identity() {
             Ok(())
         } else {
             Err(Error::InvalidSignature)
