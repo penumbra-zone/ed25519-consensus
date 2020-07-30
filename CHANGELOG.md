@@ -2,6 +2,12 @@
 
 Entries are listed in reverse chronological order.
 
+# 2.1.1
+
+* Add a missing multiplication by the cofactor in batch verification and test
+  that individual and batch verification agree.  This corrects an omission that
+  should have been included in `2.0.0`.
+
 # 2.1.0
 
 * Implements `Clone + Debug` for `batch::Item` and provides
