@@ -2,6 +2,10 @@
 
 Entries are listed in reverse chronological order.
 
+# 2.1.2
+
+* Updates `sha2` version to `0.9` and `curve25519-dalek` version to `3`.
+
 # 2.1.1
 
 * Add a missing multiplication by the cofactor in batch verification and test
