@@ -29,7 +29,7 @@ use crate::{Error, Signature};
 /// VerificationKey::try_from(vk_bytes)
 ///     .and_then(|vk| vk.verify(&sig, msg));
 /// ```
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VerificationKeyBytes(pub(crate) [u8; 32]);
 
