@@ -2,6 +2,13 @@
 
 Entries are listed in reverse chronological order.
 
+# 2.2.0
+
+* Add `PartialOrd`, `Ord` implementations for `VerificationKeyBytes`.  While
+  the derived ordering is not cryptographically meaningful, deriving these
+  traits is useful because it allows, e.g., using `VerificationKeyBytes` as the
+  key to a `BTreeMap` (contributed by @cloudhead).
+
 # 2.1.2
 
 * Updates `sha2` version to `0.9` and `curve25519-dalek` version to `3`.
