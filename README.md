@@ -34,7 +34,7 @@ verification. More details and motivation are available in the text of [ZIP215].
 
 The `1.x` series of this crate implements the legacy, pre-ZIP-215 validation
 criteria; the `2.x` series of this crate implements the post-ZIP-215
-validation criteria.  Users (like Zebra or Zcashd) who need to handle the
+validation criteria.  Users (like Zebra or zcashd) who need to handle the
 upgrade can use both versions simultaneously using cargo renaming, e.g.,
 ```toml
 ed25519-zebra-legacy = { package = "ed25519-zebra", version = "1" }
