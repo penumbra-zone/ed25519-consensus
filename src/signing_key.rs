@@ -106,6 +106,13 @@ impl From<[u8; 32]> for SigningKey {
     }
 }
 
+impl zeroize::Zeroize for SigningKey {
+    fn zeroize(&mut self) {
+        self.seed.zeroize();
+        self.s.zeroize()
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct SerdeHelper([u8; 32]);
 
