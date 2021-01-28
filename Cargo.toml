@@ -18,7 +18,7 @@ hex = "0.4"
 sha2 = "0.9"
 rand_core = "0.5"
 thiserror = "1"
-curve25519-dalek = "3"
+curve25519-dalek = { package = "curve25519-dalek-ng", version = "3" }
 serde = { version = "1", optional = true, features = ["derive"] }
 zeroize = "1.1"
 
