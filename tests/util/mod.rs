@@ -3,7 +3,7 @@
 
 use color_eyre::{eyre::eyre, Report};
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
-use ed25519_zebra as ed25519_zebra_zip215;
+use ed25519_consensus;
 
 use std::convert::TryFrom;
 pub struct TestCase {
@@ -56,7 +56,7 @@ impl TestCase {
     }
 
     fn check_zip215(&self) -> Result<(), Report> {
-        use ed25519_zebra_zip215::{Signature, VerificationKey};
+        use ed25519_consensus::{Signature, VerificationKey};
         let sig = Signature::from(self.sig_bytes);
         VerificationKey::try_from(self.vk_bytes).and_then(|vk| vk.verify(&sig, b"Zcash"))?;
         Ok(())

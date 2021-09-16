@@ -5,7 +5,7 @@
 //! in consensus.rs.
 
 use bincode;
-use ed25519_zebra::*;
+use ed25519_consensus::*;
 use hex;
 
 fn rfc8032_test_case(sk_bytes: Vec<u8>, pk_bytes: Vec<u8>, sig_bytes: Vec<u8>, msg: Vec<u8>) {

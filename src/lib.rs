@@ -1,10 +1,6 @@
-#![doc(html_root_url = "https://docs.rs/ed25519-zebra/2.2.0")]
-#![cfg_attr(feature = "nightly", feature(doc_cfg))]
-#![cfg_attr(feature = "nightly", feature(external_doc))]
-#![cfg_attr(feature = "nightly", doc(include = "../README.md"))]
+#![doc(html_root_url = "https://docs.rs/ed25519-consensus/1.0.0")]
+#![doc = include_str!("../README.md")]
 #![deny(missing_docs)]
-
-//! Docs require the `nightly` feature until RFC 1990 lands.
 
 pub mod batch;
 mod error;

@@ -21,8 +21,8 @@ use crate::{Error, Signature};
 /// ```
 /// use std::convert::TryFrom;
 /// # use rand::thread_rng;
-/// # use ed25519_zebra::*;
-/// # let msg = b"Zcash";
+/// # use ed25519_consensus::*;
+/// # let msg = b"ed25519-consensus";
 /// # let sk = SigningKey::new(thread_rng());
 /// # let sig = sk.sign(msg);
 /// # let vk_bytes = VerificationKeyBytes::from(&sk);
@@ -80,7 +80,7 @@ impl From<VerificationKeyBytes> for [u8; 32] {
 /// verification key may not be used immediately, it is probably better to use
 /// [`VerificationKeyBytes`], which is a refinement type for `[u8; 32]`.
 ///
-/// ## Zcash-specific consensus properties
+/// ## Consensus properties
 ///
 /// Ed25519 checks are described in [§5.4.5][ps] of the Zcash protocol specification and in
 /// [ZIP 215].  The verification criteria for an (encoded) verification key `A_bytes` are:
@@ -151,7 +151,7 @@ impl TryFrom<[u8; 32]> for VerificationKey {
 impl VerificationKey {
     /// Verify a purported `signature` on the given `msg`.
     ///
-    /// ## Zcash-specific consensus properties
+    /// ## Consensus properties
     ///
     /// Ed25519 checks are described in [§5.4.5][ps] of the Zcash protocol specification and in
     /// [ZIP215].  The verification criteria for an (encoded) signature `(R_bytes, s_bytes)` with

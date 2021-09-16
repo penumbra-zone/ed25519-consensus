@@ -1,6 +1,6 @@
 use rand::thread_rng;
 
-use ed25519_zebra::*;
+use ed25519_consensus::*;
 
 #[test]
 fn batch_verify() {

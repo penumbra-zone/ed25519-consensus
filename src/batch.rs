@@ -28,13 +28,13 @@
 //!
 //! ![benchmark](https://www.zfnd.org/images/coalesced-batch-graph.png)
 //!
-//! This optimization doesn't help much with Zcash, where public keys are random,
+//! This optimization doesn't help much when public keys are random,
 //! but could be useful in proof-of-stake systems where signatures come from a
 //! set of validators (provided that system uses the ZIP215 rules).
 //!
 //! # Example
 //! ```
-//! # use ed25519_zebra::*;
+//! # use ed25519_consensus::*;
 //! let mut batch = batch::Verifier::new();
 //! for _ in 0..32 {
 //!     let sk = SigningKey::new(rand::thread_rng());

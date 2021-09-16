@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use rand::thread_rng;
 
-use ed25519_zebra::{Signature, SigningKey, VerificationKey, VerificationKeyBytes};
+use ed25519_consensus::{Signature, SigningKey, VerificationKey, VerificationKeyBytes};
 
 #[test]
 fn parsing() {
@@ -45,7 +45,7 @@ fn sign_and_verify() {
     let sk = SigningKey::new(thread_rng());
     let pk = VerificationKey::from(&sk);
 
-    let msg = b"ed25519-zebra test message";
+    let msg = b"ed25519-consensus test message";
 
     let sig = sk.sign(&msg[..]);
 

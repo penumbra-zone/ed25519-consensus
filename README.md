@@ -1,54 +1,58 @@
-Zcash-flavored Ed25519 for use in [Zebra][zebra].
+# Ed25519 for consensus-critical contexts
 
-Zcash uses Ed25519 for [JoinSplit signatures][zcash_protocol_jssig] with
-particular validation rules around edge cases in Ed25519 signatures.  Ed25519,
-as specified in [RFC8032], does not specify behaviour around these edge cases
-and so does not require conformant implementations to agree on whether a
-signature is valid.  For most applications, these edge cases are irrelevant,
-but in Zcash, nodes must be able to reach consensus on which signatures would
-be valid, so these validation behaviors are *consensus-critical*.
+This library provides an Ed25519 implementation with validation rules intended
+for consensus-critical contexts.
 
-Because the Ed25519 validation rules are consensus-critical for Zcash, Zebra
-requires an Ed25519 library that implements the Zcash-flavored validation rules
-specifically, and since it is unreasonable to expect an upstream dependency to
-maintain Zcash-specific behavior, this crate provides an Ed25519 implementation
-matching the Zcash consensus rules exactly.
-
-However, this library may be of independent interest, as it implements
-ZIP215, a set of precisely specified validation rules for Ed25519 that make
-individual verification consistent with batch verification and are
-backwards-compatible with all existing Ed25519 signatures. Any non-Zcash users 
-should use the ZIP215 rules:
 ```toml
-ed25519-zebra = "2"
+ed25519-consensus = "1"
 ```
 
-## ZIP 215 and changes to Zcash-flavored Ed25519
+Ed25519 signatures are widely used in consensus-critical contexts (e.g.,
+blockchains), where different nodes must agree on whether or not a given
+signature is valid.  However, Ed25519 does not clearly define criteria for
+signature validity, and even standards-conformant implementations are not
+required to agree on whether a signature is valid.
 
-[Zcash Improvement Proposal 215][ZIP215] changes validation criteria for
-Ed25519 signatures in Zcash after its activation (currently scheduled for the
-Canopy network upgrade at block height 1046400). These changes remove the
-dependence on validation rules inherited from a specific point release of
-`libsodium` and make individual verification consistent with batch
-verification. More details and motivation are available in the text of [ZIP215].
+Different Ed25519 implementations may not (and in practice, do not) agree on
+validation criteria in subtle edge cases.   This poses a double risk to the use
+of Ed25519 in consensus-critical contexts.  First, the presence of multiple
+Ed25519 implementations may open the possibility of consensus divergence.
+Second, even when a single implementation is used, the protocol implicitly
+includes that particular version's validation criteria as part of the consensus
+rules.  However, if the implementation is not intended to be used in
+consensus-critical contexts, it may change validation criteria between releases.
 
-The `1.x` series of this crate implements the legacy, pre-ZIP-215 validation
-criteria; the `2.x` series of this crate implements the post-ZIP-215
-validation criteria.  Users (like Zebra or zcashd) who need to handle the
-upgrade can use both versions simultaneously using cargo renaming, e.g.,
-```toml
-ed25519-zebra-legacy = { package = "ed25519-zebra", version = "1" }
-ed25519-zebra-zip215 = { package = "ed25519-zebra", version = "2" }
-```
+For instance, the initial implementation of Zcash consensus in zcashd inherited
+validity criteria from a then-current version of libsodium (1.0.15). Due to a
+bug in libsodium, this was different from the intended criteria documented in
+the Zcash protocol specification 3 (before the specification was changed to
+match libsodium 1.0.15 in specification version 2020.1.2). Also, libsodium never
+guaranteed stable validity criteria, and changed behavior in a later point
+release. This forced zcashd to use an older version of the library before
+eventually patching a newer version to have consistent validity criteria. To be
+compatible, [Zebra] had to implement a special library, `ed25519-zebra`, to
+provide Zcash-flavored Ed25519, attempting to match libsodium 1.0.15 exactly.
+And the initial attempt to implement `ed25519-zebra` was also incompatible,
+because it precisely matched the wrong compile-time configuration of libsodium.
+
+This problem is fixed by [ZIP215], a specification of a precise set of
+validation criteria for Ed25519 signatures.  Although originally developed for
+Zcash, these rules are of general interest, as they precisely specified and
+ensure that batch and individual verification are guaranteed to give the same
+results.  This library implements these rules; it is a fork of `ed25519-zebra`
+with Zcash-specific parts removed.
+
+More details on this problem and its solution can be found in [*It's 255:19AM.
+Do you know what your validation criteria are?*][blog]
 
 ## Example
 
 ```
 use std::convert::TryFrom;
 use rand::thread_rng;
-use ed25519_zebra::*;
+use ed25519_consensus::*;
 
-let msg = b"Zcash";
+let msg = b"ed25519-consensus";
 
 // Signer's context
 let (vk_bytes, sig_bytes) = {
@@ -75,3 +79,4 @@ assert!(
 [RFC8032]: https://tools.ietf.org/html/rfc8032
 [zebra]: https://github.com/ZcashFoundation/zebra
 [ZIP215]: https://github.com/zcash/zips/blob/master/zip-0215.rst
+[blog]: https://hdevalence.ca/blog/2020-10-04-its-25519am

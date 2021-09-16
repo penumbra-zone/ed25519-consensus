@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
-use ed25519_zebra::*;
+use ed25519_consensus::*;
 use rand::thread_rng;
 use std::convert::TryFrom;
 

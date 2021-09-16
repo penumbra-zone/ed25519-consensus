@@ -87,7 +87,7 @@ fn conformance() -> Result<(), Report> {
 
 #[test]
 fn individual_matches_batch_verification() -> Result<(), Report> {
-    use ed25519_zebra::{batch, Signature, VerificationKey, VerificationKeyBytes};
+    use ed25519_consensus::{batch, Signature, VerificationKey, VerificationKeyBytes};
     use std::convert::TryFrom;
     for case in SMALL_ORDER_SIGS.iter() {
         let msg = b"Zcash";
