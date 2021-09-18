@@ -46,9 +46,16 @@ impl TryFrom<&[u8]> for Signature {
 
 impl From<Signature> for [u8; 64] {
     fn from(sig: Signature) -> [u8; 64] {
+        sig.as_bytes()
+    }
+}
+
+impl Signature {
+    /// Returns `R` as `S` signature part in contiguous array
+    pub fn as_bytes(&self) -> [u8; 64] {
         let mut bytes = [0; 64];
-        bytes[0..32].copy_from_slice(&sig.R_bytes[..]);
-        bytes[32..64].copy_from_slice(&sig.s_bytes[..]);
+        bytes[0..32].copy_from_slice(&self.R_bytes[..]);
+        bytes[32..64].copy_from_slice(&self.s_bytes[..]);
         bytes
     }
 }

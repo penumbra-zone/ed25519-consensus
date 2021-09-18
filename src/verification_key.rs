@@ -33,6 +33,13 @@ use crate::{Error, Signature};
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VerificationKeyBytes(pub(crate) [u8; 32]);
 
+impl VerificationKeyBytes {
+    /// Returns `VerificationKey` serialized in bytes
+    pub fn as_bytes(&self) -> [u8; 32] {
+        self.0
+    }
+}
+
 impl core::fmt::Debug for VerificationKeyBytes {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         fmt.debug_tuple("VerificationKeyBytes")

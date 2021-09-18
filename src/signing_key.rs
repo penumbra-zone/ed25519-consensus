@@ -20,6 +20,13 @@ pub struct SigningKey {
     vk: VerificationKey,
 }
 
+impl SigningKey {
+    /// Returns seed part of signing key
+    pub fn as_bytes(&self) -> [u8; 32] {
+        self.seed
+    }
+}
+
 impl core::fmt::Debug for SigningKey {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         fmt.debug_struct("SigningKey")
