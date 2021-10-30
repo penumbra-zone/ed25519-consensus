@@ -21,9 +21,16 @@ pub struct SigningKey {
 }
 
 impl SigningKey {
-    /// Returns seed part of signing key
-    pub fn as_bytes(&self) -> [u8; 32] {
+    /// Returns the byte encoding of the signing key.
+    ///
+    /// This is the same as `.into()`, but does not require type inference.
+    pub fn to_bytes(&self) -> [u8; 32] {
         self.seed
+    }
+
+    /// View the byte encoding of the signing key.
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.seed
     }
 }
 

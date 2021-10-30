@@ -34,9 +34,16 @@ use crate::{Error, Signature};
 pub struct VerificationKeyBytes(pub(crate) [u8; 32]);
 
 impl VerificationKeyBytes {
-    /// Returns `VerificationKey` serialized in bytes
-    pub fn as_bytes(&self) -> [u8; 32] {
+    /// Returns the byte encoding of the verification key.
+    ///
+    /// This is the same as `.into()`, but does not require type inference.
+    pub fn to_bytes(&self) -> [u8; 32] {
         self.0
+    }
+
+    /// View the byte encoding of the verification key.
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
     }
 }
 
