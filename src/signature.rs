@@ -1,5 +1,5 @@
 use crate::Error;
-use std::convert::TryFrom;
+use core::convert::TryFrom;
 
 /// An Ed25519 signature.
 #[derive(Copy, Clone, Eq, PartialEq)]

@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use core::convert::TryFrom;
 
 use curve25519_dalek::{constants, scalar::Scalar};
 use rand_core::{CryptoRng, RngCore};

@@ -1,4 +1,4 @@
-use std::convert::{TryFrom, TryInto};
+use core::convert::{TryFrom, TryInto};
 
 use curve25519_dalek::{
     edwards::{CompressedEdwardsY, EdwardsPoint},
@@ -19,7 +19,7 @@ use crate::{Error, Signature};
 /// A `VerificationKeyBytes` can be used to verify a single signature using the
 /// following idiom:
 /// ```
-/// use std::convert::TryFrom;
+/// use core::convert::TryFrom;
 /// # use rand::thread_rng;
 /// # use ed25519_consensus::*;
 /// # let msg = b"ed25519-consensus";
