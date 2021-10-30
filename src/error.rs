@@ -1,18 +1,20 @@
+#[cfg(feature = "std")]
 use thiserror::Error;
 
 /// An error related to Ed25519 signatures.
-#[derive(Error, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "std", derive(Error))]
 pub enum Error {
     /// The encoding of a secret key was malformed.
-    #[error("Malformed secret key encoding.")]
+    #[cfg_attr(feature = "std", error("Malformed secret key encoding."))]
     MalformedSecretKey,
     /// The encoding of a public key was malformed.
-    #[error("Malformed public key encoding.")]
+    #[cfg_attr(feature = "std", error("Malformed public key encoding."))]
     MalformedPublicKey,
     /// Signature verification failed.
-    #[error("Invalid signature.")]
+    #[cfg_attr(feature = "std", error("Invalid signature."))]
     InvalidSignature,
     /// A byte slice of the wrong length was supplied during parsing.
-    #[error("Invalid length when parsing byte slice.")]
+    #[cfg_attr(feature = "std", error("Invalid length when parsing byte slice."))]
     InvalidSliceLength,
 }
