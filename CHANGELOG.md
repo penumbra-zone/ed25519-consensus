@@ -2,6 +2,11 @@
 
 Entries are listed in reverse chronological order.
 
+# 1.1.0
+
+* Support `no_std`.
+* Add `to_bytes`/`as_bytes` methods to complement the `Into` implementations (by @0xdeadbeef).
+
 # 1.0.0
 
 * Remove Zcash-specific language, update dependencies, and re-release as
