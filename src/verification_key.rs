@@ -33,6 +33,20 @@ use crate::{Error, Signature};
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VerificationKeyBytes(pub(crate) [u8; 32]);
 
+impl VerificationKeyBytes {
+    /// Returns the byte encoding of the verification key.
+    ///
+    /// This is the same as `.into()`, but does not require type inference.
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0
+    }
+
+    /// View the byte encoding of the verification key.
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
 impl core::fmt::Debug for VerificationKeyBytes {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         fmt.debug_tuple("VerificationKeyBytes")
@@ -89,7 +103,7 @@ impl From<VerificationKeyBytes> for [u8; 32] {
 ///   Curve25519, and non-canonical encodings MUST be accepted;
 ///
 /// [ps]: https://zips.z.cash/protocol/protocol.pdf#concreteed25519
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "VerificationKeyBytes"))]
 #[cfg_attr(feature = "serde", serde(into = "VerificationKeyBytes"))]
