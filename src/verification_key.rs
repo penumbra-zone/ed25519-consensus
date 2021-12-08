@@ -163,6 +163,18 @@ impl TryFrom<[u8; 32]> for VerificationKey {
 }
 
 impl VerificationKey {
+    /// Returns the byte encoding of the verification key.
+    ///
+    /// This is the same as `.into()`, but does not require type inference.
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.A_bytes.0
+    }
+
+    /// View the byte encoding of the verification key.
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.A_bytes.0
+    }
+
     /// Verify a purported `signature` on the given `msg`.
     ///
     /// ## Consensus properties
