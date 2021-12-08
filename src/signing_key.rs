@@ -32,6 +32,11 @@ impl SigningKey {
     pub fn as_bytes(&self) -> &[u8; 32] {
         &self.seed
     }
+
+    /// Obtain the verification key associated with this signing key.
+    pub fn verification_key(&self) -> VerificationKey {
+        self.vk
+    }
 }
 
 impl core::fmt::Debug for SigningKey {
