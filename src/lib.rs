@@ -1,4 +1,4 @@
-#![doc(html_root_url = "https://docs.rs/ed25519-consensus/1.1.0")]
+#![doc(html_root_url = "https://docs.rs/ed25519-consensus/1.2.0")]
 #![doc = include_str!("../README.md")]
 #![deny(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]

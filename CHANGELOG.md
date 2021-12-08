@@ -2,6 +2,11 @@
 
 Entries are listed in reverse chronological order.
 
+# 1.2.0
+
+* Add `to_bytes`/`as_bytes` for `VerificationKey`.
+* Add `SigningKey::verification_key()` convenience method (instead of `From`).
+
 # 1.1.0
 
 * Support `no_std`.
