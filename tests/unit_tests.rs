@@ -14,7 +14,7 @@ fn parsing() {
     // Most of these types don't implement Eq, so we check a round trip
     // conversion to bytes, using these as the reference points:
 
-    let sk_array: [u8; 32] = sk.into();
+    let sk_array: [u8; 32] = sk.clone().into();
     let pk_array: [u8; 32] = pk.into();
     let pkb_array: [u8; 32] = pkb.into();
     let sig_array: [u8; 64] = sig.into();

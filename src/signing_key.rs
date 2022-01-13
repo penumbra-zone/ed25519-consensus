@@ -9,7 +9,7 @@ use crate::{Error, Signature, VerificationKey, VerificationKeyBytes};
 /// An Ed25519 signing key.
 ///
 /// This is also called a secret key by other implementations.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(from = "SerdeHelper"))]
 #[cfg_attr(feature = "serde", serde(into = "SerdeHelper"))]

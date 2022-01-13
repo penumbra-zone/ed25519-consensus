@@ -2,6 +2,10 @@
 
 Entries are listed in reverse chronological order.
 
+# 2.0.0
+
+* Remove `Copy` implementation from `SigningKey`.
+
 # 1.2.0
 
 * Add `to_bytes`/`as_bytes` for `VerificationKey`.
