@@ -103,7 +103,7 @@ impl From<VerificationKeyBytes> for [u8; 32] {
 ///   Curve25519, and non-canonical encodings MUST be accepted;
 ///
 /// [ps]: https://zips.z.cash/protocol/protocol.pdf#concreteed25519
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(try_from = "VerificationKeyBytes"))]
 #[cfg_attr(feature = "serde", serde(into = "VerificationKeyBytes"))]
@@ -111,6 +111,14 @@ impl From<VerificationKeyBytes> for [u8; 32] {
 pub struct VerificationKey {
     pub(crate) A_bytes: VerificationKeyBytes,
     pub(crate) minus_A: EdwardsPoint,
+}
+
+impl core::fmt::Debug for VerificationKey {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+        fmt.debug_tuple("VerificationKey")
+            .field(&hex::encode(&self.A_bytes.0))
+            .finish()
+    }
 }
 
 impl From<VerificationKey> for VerificationKeyBytes {
