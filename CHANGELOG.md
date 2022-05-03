@@ -2,6 +2,10 @@
 
 Entries are listed in reverse chronological order.
 
+# 1.2.1
+
+* Change `VerificationKey`'s `Debug` impl to print hex bytes.
+
 # 1.2.0
 
 * Add `to_bytes`/`as_bytes` for `VerificationKey`.
