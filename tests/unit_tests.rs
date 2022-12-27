@@ -49,5 +49,5 @@ fn sign_and_verify() {
 
     let sig = sk.sign(&msg[..]);
 
-    assert_eq!(pk.verify(&sig, &msg[..]), Ok(()))
+    assert_eq!(pk.verify(&msg[..], &sig), Ok(()))
 }

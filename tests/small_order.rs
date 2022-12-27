@@ -94,7 +94,7 @@ fn individual_matches_batch_verification() -> Result<(), Report> {
         let sig = Signature::from(case.sig_bytes);
         let vkb = VerificationKeyBytes::from(case.vk_bytes);
         let individual_verification =
-            VerificationKey::try_from(vkb).and_then(|vk| vk.verify(&sig, msg));
+            VerificationKey::try_from(vkb).and_then(|vk| vk.verify(msg, &sig));
         let mut bv = batch::Verifier::new();
         bv.queue((vkb, sig, msg));
         let batch_verification = bv.verify(rand::thread_rng());

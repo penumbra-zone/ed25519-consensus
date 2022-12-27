@@ -68,9 +68,10 @@ let (vk_bytes, sig_bytes) = {
 };
 
 // Verify the signature
+
 assert!(
     VerificationKey::try_from(vk_bytes)
-        .and_then(|vk| vk.verify(&sig_bytes.into(), msg))
+        .and_then(|vk| vk.verify(msg, &sig_bytes.into()))
         .is_ok()
 );
 ```

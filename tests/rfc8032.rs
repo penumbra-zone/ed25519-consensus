@@ -13,7 +13,7 @@ fn rfc8032_test_case(sk_bytes: Vec<u8>, pk_bytes: Vec<u8>, sig_bytes: Vec<u8>, m
     let pk: VerificationKey = bincode::deserialize(&pk_bytes).expect("pk should deserialize");
     let sig: Signature = bincode::deserialize(&sig_bytes).expect("sig should deserialize");
 
-    assert!(pk.verify(&sig, &msg).is_ok(), "verification failed");
+    assert!(pk.verify(&msg, &sig).is_ok(), "verification failed");
 
     let pk_from_sk = VerificationKey::from(&sk);
     assert_eq!(

@@ -34,7 +34,7 @@ fn bench_batch_verify(c: &mut Criterion) {
                 b.iter(|| {
                     for (vk_bytes, sig) in sigs.iter() {
                         let _ =
-                            VerificationKey::try_from(*vk_bytes).and_then(|vk| vk.verify(sig, b""));
+                            VerificationKey::try_from(*vk_bytes).and_then(|vk| vk.verify(b"", sig));
                     }
                 })
             },
