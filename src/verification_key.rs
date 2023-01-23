@@ -113,6 +113,24 @@ pub struct VerificationKey {
     pub(crate) minus_A: EdwardsPoint,
 }
 
+impl PartialOrd for VerificationKey {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for VerificationKey {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.A_bytes.cmp(&other.A_bytes)
+    }
+}
+
+impl std::hash::Hash for VerificationKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.A_bytes.hash(state);
+    }
+}
+
 impl core::fmt::Debug for VerificationKey {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         fmt.debug_tuple("VerificationKey")
