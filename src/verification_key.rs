@@ -125,8 +125,8 @@ impl Ord for VerificationKey {
     }
 }
 
-impl std::hash::Hash for VerificationKey {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl core::hash::Hash for VerificationKey {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.A_bytes.hash(state);
     }
 }
