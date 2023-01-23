@@ -1,6 +1,7 @@
 use core::convert::TryFrom;
 
 use curve25519_dalek::{constants, scalar::Scalar};
+use ed25519::signature::{self, Signer};
 use rand_core::{CryptoRng, RngCore};
 use sha2::{Digest, Sha512};
 
@@ -156,7 +157,6 @@ impl SigningKey {
     }
 
     /// Create a signature on `msg` using this key.
-    #[allow(non_snake_case)]
     pub fn sign(&self, msg: &[u8]) -> Signature {
         let r = Scalar::from_hash(Sha512::default().chain(&self.prefix[..]).chain(msg));
 
@@ -173,6 +173,13 @@ impl SigningKey {
 
         let s_bytes = (r + k * self.s).to_bytes();
 
-        Signature { R_bytes, s_bytes }
+        Signature::from_components(R_bytes, s_bytes)
+    }
+}
+
+impl Signer<Signature> for SigningKey {
+    #[allow(non_snake_case)]
+    fn try_sign(&self, msg: &[u8]) -> signature::Result<Signature> {
+        Ok(self.sign(msg))
     }
 }

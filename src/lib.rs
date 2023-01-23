@@ -6,11 +6,10 @@
 #[cfg(feature = "std")]
 pub mod batch;
 mod error;
-mod signature;
 mod signing_key;
 mod verification_key;
 
+pub use ed25519::{signature, Signature};
 pub use error::Error;
-pub use signature::Signature;
 pub use signing_key::SigningKey;
 pub use verification_key::{VerificationKey, VerificationKeyBytes};

@@ -5,6 +5,7 @@ use curve25519_dalek::{
     scalar::Scalar,
     traits::IsIdentity,
 };
+use ed25519::signature::{self, Verifier};
 use sha2::{Digest, Sha512};
 
 use crate::{Error, Signature};
@@ -27,7 +28,7 @@ use crate::{Error, Signature};
 /// # let sig = sk.sign(msg);
 /// # let vk_bytes = VerificationKeyBytes::from(&sk);
 /// VerificationKey::try_from(vk_bytes)
-///     .and_then(|vk| vk.verify(&sig, msg));
+///     .and_then(|vk| vk.verify( msg,&sig));
 /// ```
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -222,10 +223,10 @@ impl VerificationKey {
     ///
     /// [ps]: https://zips.z.cash/protocol/protocol.pdf#concreteed25519
     /// [ZIP215]: https://github.com/zcash/zips/blob/master/zip-0215.rst
-    pub fn verify(&self, signature: &Signature, msg: &[u8]) -> Result<(), Error> {
+    pub fn verify(&self, msg: &[u8], signature: &Signature) -> Result<(), Error> {
         let k = Scalar::from_hash(
             Sha512::default()
-                .chain(&signature.R_bytes[..])
+                .chain(signature.r_bytes())
                 .chain(&self.A_bytes.0[..])
                 .chain(msg),
         );
@@ -237,9 +238,10 @@ impl VerificationKey {
     #[allow(non_snake_case)]
     pub(crate) fn verify_prehashed(&self, signature: &Signature, k: Scalar) -> Result<(), Error> {
         // `s_bytes` MUST represent an integer less than the prime `l`.
-        let s = Scalar::from_canonical_bytes(signature.s_bytes).ok_or(Error::InvalidSignature)?;
+        let s =
+            Scalar::from_canonical_bytes(*signature.s_bytes()).ok_or(Error::InvalidSignature)?;
         // `R_bytes` MUST be an encoding of a point on the twisted Edwards form of Curve25519.
-        let R = CompressedEdwardsY(signature.R_bytes)
+        let R = CompressedEdwardsY(*signature.r_bytes())
             .decompress()
             .ok_or(Error::InvalidSignature)?;
         // We checked the encoding of A_bytes when constructing `self`.
@@ -255,5 +257,12 @@ impl VerificationKey {
         } else {
             Err(Error::InvalidSignature)
         }
+    }
+}
+
+impl Verifier<Signature> for VerificationKey {
+    fn verify(&self, msg: &[u8], signature: &Signature) -> signature::Result<()> {
+        self.verify(msg, signature)
+            .map_err(|_| signature::Error::new())
     }
 }
