@@ -2,6 +2,11 @@
 
 Entries are listed in reverse chronological order.
 
+# 2.1.0
+
+* Add `PartialOrd`, `Ord`, `Hash` implementations for `VerificationKey`,
+  forwarding to the implementations on `VerificationKeyBytes`.
+
 # 2.0.1
 
 * Improve `Debug` output for `VerificationKey`.
