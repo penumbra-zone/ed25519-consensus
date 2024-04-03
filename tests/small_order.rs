@@ -11,7 +11,7 @@ use util::TestCase;
 #[allow(non_snake_case)]
 pub static SMALL_ORDER_SIGS: Lazy<Vec<TestCase>> = Lazy::new(|| {
     let mut tests = Vec::new();
-    let s = Scalar::zero();
+    let s = Scalar::ZERO;
 
     // Use all the canonical encodings of the 8-torsion points,
     // and the low-order non-canonical encodings.
@@ -49,9 +49,9 @@ pub static SMALL_ORDER_SIGS: Lazy<Vec<TestCase>> = Lazy::new(|| {
             // * R is canonically encoded (because the check recomputes R)
             let k = Scalar::from_hash(
                 Sha512::default()
-                    .chain(&sig_bytes[0..32])
-                    .chain(vk_bytes)
-                    .chain(b"Zcash"),
+                    .chain_update(&sig_bytes[0..32])
+                    .chain_update(vk_bytes)
+                    .chain_update(b"Zcash"),
             );
             let check = R + k * A;
             let non_canonical_R = R.compress().as_bytes() != R_bytes;

@@ -100,6 +100,8 @@ impl From<[u8; 32]> for SigningKey {
             scalar_bytes[0] &= 248;
             scalar_bytes[31] &= 127;
             scalar_bytes[31] |= 64;
+            // This is for semver compatibility
+            #[allow(deprecated)]
             Scalar::from_bits(scalar_bytes)
         };
 
@@ -111,7 +113,7 @@ impl From<[u8; 32]> for SigningKey {
         };
 
         // Compute the public key as A = [s]B.
-        let A = &s * &constants::ED25519_BASEPOINT_TABLE;
+        let A = &s * constants::ED25519_BASEPOINT_TABLE;
 
         SigningKey {
             seed,
@@ -158,17 +160,21 @@ impl SigningKey {
     /// Create a signature on `msg` using this key.
     #[allow(non_snake_case)]
     pub fn sign(&self, msg: &[u8]) -> Signature {
-        let r = Scalar::from_hash(Sha512::default().chain(&self.prefix[..]).chain(msg));
+        let r = Scalar::from_hash(
+            Sha512::default()
+                .chain_update(&self.prefix[..])
+                .chain_update(msg),
+        );
 
-        let R_bytes = (&r * &constants::ED25519_BASEPOINT_TABLE)
+        let R_bytes = (&r * constants::ED25519_BASEPOINT_TABLE)
             .compress()
             .to_bytes();
 
         let k = Scalar::from_hash(
             Sha512::default()
-                .chain(&R_bytes[..])
-                .chain(&self.vk.A_bytes.0[..])
-                .chain(msg),
+                .chain_update(&R_bytes[..])
+                .chain_update(&self.vk.A_bytes.0[..])
+                .chain_update(msg),
         );
 
         let s_bytes = (r + k * self.s).to_bytes();
