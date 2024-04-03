@@ -55,15 +55,9 @@ pub static SMALL_ORDER_SIGS: Lazy<Vec<TestCase>> = Lazy::new(|| {
             );
             let check = R + k * A;
             let non_canonical_R = R.compress().as_bytes() != R_bytes;
-            let valid_legacy = if vk_bytes == [0; 32]
+            let valid_legacy = !(vk_bytes == [0; 32]
                 || util::EXCLUDED_POINT_ENCODINGS.contains(R.compress().as_bytes())
-                || !check.is_identity()
-                || non_canonical_R
-            {
-                false
-            } else {
-                true
-            };
+                || !check.is_identity() || non_canonical_R);
 
             tests.push(TestCase {
                 vk_bytes,

@@ -3,7 +3,7 @@
 
 use color_eyre::{eyre::eyre, Report};
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
-use ed25519_consensus;
+
 
 use std::convert::TryFrom;
 pub struct TestCase {
@@ -181,12 +181,10 @@ pub fn order(point: EdwardsPoint) -> &'static str {
         } else {
             "8"
         }
+    } else if point.is_torsion_free() {
+        "p"
     } else {
-        if point.is_torsion_free() {
-            "p"
-        } else {
-            "8p"
-        }
+        "8p"
     }
 }
 

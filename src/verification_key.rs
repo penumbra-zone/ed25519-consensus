@@ -50,7 +50,7 @@ impl VerificationKeyBytes {
 impl core::fmt::Debug for VerificationKeyBytes {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         fmt.debug_tuple("VerificationKeyBytes")
-            .field(&hex::encode(&self.0))
+            .field(&hex::encode(self.0))
             .finish()
     }
 }
@@ -134,7 +134,7 @@ impl core::hash::Hash for VerificationKey {
 impl core::fmt::Debug for VerificationKey {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         fmt.debug_tuple("VerificationKey")
-            .field(&hex::encode(&self.A_bytes.0))
+            .field(&hex::encode(self.A_bytes.0))
             .finish()
     }
 }

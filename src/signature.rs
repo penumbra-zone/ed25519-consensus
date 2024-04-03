@@ -13,8 +13,8 @@ pub struct Signature {
 impl core::fmt::Debug for Signature {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         fmt.debug_struct("Signature")
-            .field("R_bytes", &hex::encode(&self.R_bytes))
-            .field("s_bytes", &hex::encode(&self.s_bytes))
+            .field("R_bytes", &hex::encode(self.R_bytes))
+            .field("s_bytes", &hex::encode(self.s_bytes))
             .finish()
     }
 }
