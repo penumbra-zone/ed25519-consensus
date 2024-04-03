@@ -4,7 +4,6 @@
 use color_eyre::{eyre::eyre, Report};
 use curve25519_dalek::edwards::{CompressedEdwardsY, EdwardsPoint};
 
-
 use std::convert::TryFrom;
 pub struct TestCase {
     pub vk_bytes: [u8; 32],
