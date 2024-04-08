@@ -1,48 +1,85 @@
 use core::convert::TryFrom;
+use core::fmt::Formatter;
 
 use curve25519_dalek::{constants, scalar::Scalar};
 use rand_core::{CryptoRng, RngCore};
+use serde::de::{self, Visitor};
+use serde::ser::SerializeTuple;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sha2::{Digest, Sha512};
 
 use crate::{Error, Signature, VerificationKey, VerificationKeyBytes};
 
 /// An Ed25519 signing key.
 ///
-/// This is also called a secret key by other implementations.
+/// This is also called an expanded secret key by other implementations.
 #[derive(Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(from = "SerdeHelper"))]
-#[cfg_attr(feature = "serde", serde(into = "SerdeHelper"))]
 pub struct SigningKey {
-    seed: [u8; 32],
     s: Scalar,
     prefix: [u8; 32],
     vk: VerificationKey,
 }
 
 impl SigningKey {
-    /// Returns the byte encoding of the signing key.
-    ///
-    /// This is the same as `.into()`, but does not require type inference.
-    pub fn to_bytes(&self) -> [u8; 32] {
-        self.seed
-    }
-
-    /// View the byte encoding of the signing key.
-    pub fn as_bytes(&self) -> &[u8; 32] {
-        &self.seed
-    }
-
     /// Obtain the verification key associated with this signing key.
     pub fn verification_key(&self) -> VerificationKey {
         self.vk
     }
 }
 
+/// Serialize the SigningKey as the expanded secret key
+impl Serialize for SigningKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_tuple(64)?;
+        for s in self.s.as_bytes() {
+            seq.serialize_element(s)?;
+        }
+        for p in &self.prefix {
+            seq.serialize_element(p)?;
+        }
+        seq.end()
+    }
+}
+
+/// Deserialize bytes to SigningKey
+impl<'de> Deserialize<'de> for SigningKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct TupleVisitor;
+
+        impl<'de> Visitor<'de> for TupleVisitor {
+            type Value = SigningKey;
+
+            fn expecting(&self, formatter: &mut Formatter) -> core::fmt::Result {
+                formatter.write_str("an Ed25519 seed key or expanded secret key")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::SeqAccess<'de>,
+            {
+                let mut bytes = [0u8; 64];
+                for i in 0..64 {
+                    bytes[i] = seq
+                        .next_element()?
+                        .ok_or_else(|| de::Error::invalid_length(i, &self))?;
+                }
+                Ok(bytes.into())
+            }
+        }
+
+        deserializer.deserialize_tuple(64, TupleVisitor)
+    }
+}
+
 impl core::fmt::Debug for SigningKey {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         fmt.debug_struct("SigningKey")
-            .field("seed", &hex::encode(&self.seed))
             .field("s", &self.s)
             .field("prefix", &hex::encode(&self.prefix))
             .field("vk", &self.vk)
@@ -62,37 +99,25 @@ impl<'a> From<&'a SigningKey> for VerificationKeyBytes {
     }
 }
 
-impl AsRef<[u8]> for SigningKey {
-    fn as_ref(&self) -> &[u8] {
-        &self.seed[..]
-    }
-}
-
-impl From<SigningKey> for [u8; 32] {
-    fn from(sk: SigningKey) -> [u8; 32] {
-        sk.seed
-    }
-}
-
 impl TryFrom<&[u8]> for SigningKey {
     type Error = Error;
     fn try_from(slice: &[u8]) -> Result<SigningKey, Error> {
+        let mut bytes = [0u8; 64];
         if slice.len() == 32 {
-            let mut bytes = [0u8; 32];
+            let h = Sha512::digest(slice);
+            bytes[..].copy_from_slice(h.as_slice());
+        } else if slice.len() == 64 {
             bytes[..].copy_from_slice(slice);
-            Ok(bytes.into())
         } else {
-            Err(Error::InvalidSliceLength)
+            return Err(Error::InvalidSliceLength);
         }
+        Ok(bytes.into())
     }
 }
 
-impl From<[u8; 32]> for SigningKey {
+impl From<[u8; 64]> for SigningKey {
     #[allow(non_snake_case)]
-    fn from(seed: [u8; 32]) -> SigningKey {
-        // Expand the seed to a 64-byte array with SHA512.
-        let h = Sha512::digest(&seed[..]);
-
+    fn from(h: [u8; 64]) -> SigningKey {
         // Convert the low half to a scalar with Ed25519 "clamping"
         let s = {
             let mut scalar_bytes = [0u8; 32];
@@ -114,7 +139,6 @@ impl From<[u8; 32]> for SigningKey {
         let A = &s * &constants::ED25519_BASEPOINT_TABLE;
 
         SigningKey {
-            seed,
             s,
             prefix,
             vk: VerificationKey {
@@ -125,25 +149,29 @@ impl From<[u8; 32]> for SigningKey {
     }
 }
 
+impl From<SigningKey> for [u8; 64] {
+    fn from(value: SigningKey) -> Self {
+        let mut bytes = [0u8; 64];
+        bytes[..32].copy_from_slice(value.s.as_bytes());
+        bytes[32..].copy_from_slice(value.prefix.as_slice());
+        bytes
+    }
+}
+
+impl From<[u8; 32]> for SigningKey {
+    fn from(seed: [u8; 32]) -> SigningKey {
+        // Expand the seed to a 64-byte array with SHA512.
+        let h = Sha512::digest(&seed);
+        let mut bytes = [0u8; 64];
+        bytes[..].copy_from_slice(h.as_slice());
+
+        bytes.into()
+    }
+}
+
 impl zeroize::Zeroize for SigningKey {
     fn zeroize(&mut self) {
-        self.seed.zeroize();
         self.s.zeroize()
-    }
-}
-
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-struct SerdeHelper([u8; 32]);
-
-impl From<SerdeHelper> for SigningKey {
-    fn from(helper: SerdeHelper) -> SigningKey {
-        helper.0.into()
-    }
-}
-
-impl From<SigningKey> for SerdeHelper {
-    fn from(sk: SigningKey) -> Self {
-        Self(sk.into())
     }
 }
 
