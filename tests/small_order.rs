@@ -97,7 +97,7 @@ fn individual_matches_batch_verification() -> Result<(), Report> {
             VerificationKey::try_from(vkb).and_then(|vk| vk.verify(&sig, msg));
         let mut bv = batch::Verifier::new();
         bv.queue((vkb, sig, msg));
-        let batch_verification = bv.verify(rand::thread_rng());
+        let batch_verification = bv.verify(rand::rng());
         assert_eq!(individual_verification.is_ok(), batch_verification.is_ok());
     }
     Ok(())

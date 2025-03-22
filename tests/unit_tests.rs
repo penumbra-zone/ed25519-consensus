@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use rand::thread_rng;
+use rand::rng as thread_rng;
 
 use ed25519_consensus::{Signature, SigningKey, VerificationKey, VerificationKeyBytes};
 

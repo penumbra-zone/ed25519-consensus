@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 use ed25519_consensus::*;
-use rand::thread_rng;
+use rand::rng as thread_rng;
 use std::convert::TryFrom;
 
 fn sigs_with_distinct_pubkeys() -> impl Iterator<Item = (VerificationKeyBytes, Signature)> {
