@@ -51,3 +51,49 @@ fn sign_and_verify() {
 
     assert_eq!(pk.verify(&sig, &msg[..]), Ok(()))
 }
+
+#[test]
+fn zeroize_clears_secret_material() {
+    use zeroize::Zeroize;
+
+    let mut sk1 = SigningKey::new(thread_rng());
+    let mut sk2 = SigningKey::new(thread_rng());
+    sk1.zeroize();
+    sk2.zeroize();
+
+    // With the scalar and the nonce prefix both zeroed, a signature depends only on the
+    // message, so two distinct zeroized keys must produce the same signature.
+    let msg = b"ed25519-consensus zeroize test message";
+    assert_eq!(
+        <[u8; 64]>::from(sk1.sign(msg)),
+        <[u8; 64]>::from(sk2.sign(msg))
+    );
+    assert_eq!(sk1.as_bytes(), &[0u8; 32]);
+}
+
+#[test]
+fn signing_key_is_zeroize_on_drop() {
+    fn assert_zeroize_on_drop<T: zeroize::ZeroizeOnDrop>() {}
+    assert_zeroize_on_drop::<SigningKey>();
+}
+
+#[test]
+fn debug_does_not_render_secrets() {
+    use sha2::{Digest, Sha512};
+
+    let seed = [7u8; 32];
+    let sk = SigningKey::from(seed);
+    let expanded = Sha512::digest(&seed[..]);
+    let mut scalar = [0u8; 32];
+    scalar.copy_from_slice(&expanded[..32]);
+    scalar[0] &= 248;
+    scalar[31] &= 127;
+    scalar[31] |= 64;
+
+    for output in [format!("{:?}", sk), format!("{:#?}", sk)] {
+        for secret in [&seed[..], &scalar[..], &expanded[32..]] {
+            assert!(!output.contains(&hex::encode(secret)), "{}", output);
+            assert!(!output.contains(&format!("{:?}", secret)), "{}", output);
+        }
+    }
+}
